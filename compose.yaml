@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:18
+    container_name: learning-postgres
+
+    environment:
+      - POSTGRES_USER=task_user
+      - POSTGRES_PASSWORD=task_password
+      - POSTGRES_DB=task_db
+
+    ports:
+      - "127.0.0.1:5433:5432"
+    
+    volumes:
+      - learning-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  learning-postgres-data:
+    name: learning-postgres-data
