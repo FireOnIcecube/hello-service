@@ -1,10 +1,14 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
+
+	"github.com/jackc/pgx/v5"
 )
 
 type Task struct {
@@ -189,7 +193,94 @@ func getTasksHandler(
 	}
 }
 
+func getDbTasksHandler(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	databaseURL :=
+		"postgres://task_user:task_password@127.0.0.1:5433/task_db?sslmode=disable"
+
+	conn, err := pgx.Connect(r.Context(), databaseURL)
+
+	if err != nil {
+		http.Error(
+			w,
+			fmt.Sprintf("資料庫連線失敗: %v", err),
+			http.StatusInternalServerError,
+		)
+		return
+	}
+
+	defer conn.Close(context.Background())
+
+	rows, err := conn.Query(
+		r.Context(),
+		"SELECT id,title , completed FROM tasks",
+	)
+
+	if err != nil {
+		http.Error(
+			w,
+			fmt.Sprintf("SQL 執行失敗: %v", err),
+			http.StatusInternalServerError,
+		)
+
+		return
+	}
+
+	tasks := make([]Task, 0)
+	for rows.Next() {
+		var task Task
+		err := rows.Scan(
+			&task.ID,
+			&task.Title,
+			&task.Completed,
+		)
+
+		if err != nil {
+			http.Error(
+				w,
+				"讀取資料失敗",
+				http.StatusInternalServerError,
+			)
+			return
+		}
+
+		tasks = append(tasks, task)
+	}
+
+	if err := rows.Err(); err != nil {
+		http.Error(
+			w,
+			"遍歷資料失敗",
+			http.StatusInternalServerError,
+		)
+
+		return
+	}
+
+	w.Header().Set(
+		"Content-Type",
+		"application/json",
+	)
+
+	err = json.NewEncoder(w).Encode(tasks)
+
+	if err != nil {
+		log.Printf(
+			"JSON 編碼失敗: %v", err,
+		)
+	}
+
+}
+
 func main() {
+
+	http.HandleFunc(
+		"GET /db-test",
+		getDbTasksHandler,
+	)
+
 	http.HandleFunc(
 		"GET /tasks",
 		getTasksHandler,
