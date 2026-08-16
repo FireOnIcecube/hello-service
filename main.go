@@ -45,6 +45,77 @@ var tasks = []Task{
 
 var nextID = 3
 
+func createDbTaskHandler(
+	w http.ResponseWriter,
+	r *http.Request,
+
+) {
+	databaseURL := "postgres://task_user:task_password@127.0.0.1:5433/task_db?sslmode=disable"
+
+	var input CreateTaskRequest
+
+	err := json.NewDecoder(r.Body).Decode(&input)
+
+	if err != nil {
+		http.Error(
+			w,
+			"傳遞參數格式不正確",
+			http.StatusBadRequest,
+		)
+		return
+	}
+
+	conn, err := pgx.Connect(r.Context(), databaseURL)
+
+	if err != nil {
+		http.Error(
+			w,
+			fmt.Sprintf("資料庫連線失敗: %v", err),
+			http.StatusInternalServerError,
+		)
+		return
+	}
+
+	defer conn.Close(context.Background())
+
+	var task Task
+
+	err = conn.QueryRow(
+		r.Context(),
+		`
+		INSERT INTO tasks (title)
+		VALUES ($1) 
+		RETURNING id , title , completed
+		`,
+		input.Title,
+	).Scan(
+		&task.ID,
+		&task.Title,
+		&task.Completed,
+	)
+
+	if err != nil {
+		http.Error(
+			w,
+			fmt.Sprintf("SQL 查詢錯誤: %v", err),
+			http.StatusInternalServerError,
+		)
+		return
+	}
+
+	w.Header().Set(
+		"Content-Type",
+		"application/json",
+	)
+
+	w.WriteHeader(
+		http.StatusCreated,
+	)
+
+	err = json.NewEncoder(w).Encode(task)
+
+}
+
 func deleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 	idString := r.PathValue("id")
 
@@ -277,8 +348,13 @@ func getDbTasksHandler(
 func main() {
 
 	http.HandleFunc(
-		"GET /db-test",
+		"GET /db-task",
 		getDbTasksHandler,
+	)
+
+	http.HandleFunc(
+		"POST /db-task",
+		createDbTaskHandler,
 	)
 
 	http.HandleFunc(
