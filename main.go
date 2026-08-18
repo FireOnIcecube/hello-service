@@ -46,6 +46,89 @@ var tasks = []Task{
 
 var nextID = 3
 
+func deleteDbTaskHandler(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	databaseURL :=
+		"postgres://task_user:task_password@127.0.0.1:5433/task_db?sslmode=disable"
+
+	idString := r.PathValue("id")
+
+	id, err := strconv.Atoi(idString)
+
+	if err != nil {
+		http.Error(
+			w,
+			"傳遞 id 非數字",
+			http.StatusBadRequest,
+		)
+		return
+	}
+
+	conn, err := pgx.Connect(
+		r.Context(),
+		databaseURL,
+	)
+
+	if err != nil {
+		log.Printf(
+			"資料庫連線失敗: %v",
+			err,
+		)
+
+		http.Error(
+			w,
+			"伺服器內部錯誤",
+			http.StatusInternalServerError,
+		)
+		return
+	}
+
+	defer conn.Close(context.Background())
+
+	var deletedTaskID int
+
+	err = conn.QueryRow(
+		r.Context(),
+		`
+		DELETE FROM tasks
+		WHERE id = $1
+		RETURNING id;
+		`,
+		id,
+	).Scan(
+		&deletedTaskID,
+	)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			http.Error(
+				w,
+				"刪除資料不存在",
+				http.StatusNotFound,
+			)
+			return
+		}
+
+		log.Printf(
+			"DELETE task 失敗: %v",
+			err,
+		)
+
+		http.Error(
+			w,
+			"伺服器內部錯誤",
+			http.StatusInternalServerError,
+		)
+		return
+	}
+
+	w.WriteHeader(
+		http.StatusNoContent,
+	)
+}
+
 func updateDbTaskHandler(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -480,6 +563,11 @@ func main() {
 	http.HandleFunc(
 		"PUT /db-task/{id}",
 		updateDbTaskHandler,
+	)
+
+	http.HandleFunc(
+		"DELETE /db-task/{id}",
+		deleteDbTaskHandler,
 	)
 
 	http.HandleFunc(
