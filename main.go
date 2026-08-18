@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -97,9 +98,9 @@ func updateDbTaskHandler(
 
 	defer conn.Close(context.Background())
 
+	var task Task
 	err = conn.QueryRow(
 		r.Context(),
-
 		`
 		UPDATE tasks
 		SET
@@ -108,13 +109,29 @@ func updateDbTaskHandler(
 		WHERE id = $3
 		RETURNING id, title, completed;
 		`,
-	).Scan(
+
 		input.Title,
 		input.Completed,
 		id,
+	).Scan(
+		&task.ID,
+		&task.Title,
+		&task.Completed,
 	)
 
 	if err != nil {
+
+		if errors.Is(err, pgx.ErrNoRows) {
+			http.Error(
+				w,
+				"修改資料不存在",
+				http.StatusNotFound,
+			)
+
+			log.Fatalf("找不到對應 id: %v \n", err)
+			return
+		}
+
 		http.Error(
 			w,
 			"伺服器內部錯誤",
@@ -122,6 +139,27 @@ func updateDbTaskHandler(
 		)
 		log.Fatalln(err)
 
+		return
+	}
+
+	w.Header().Set(
+		"Content-Type",
+		"application/json",
+	)
+
+	w.WriteHeader(
+		http.StatusOK,
+	)
+
+	err = json.NewEncoder(w).Encode(task)
+
+	if err != nil {
+		http.Error(
+			w,
+			"伺服器內部錯誤",
+			http.StatusInternalServerError,
+		)
+		log.Fatalf("json 編碼錯誤:%v \n", err)
 		return
 	}
 
@@ -437,6 +475,11 @@ func main() {
 	http.HandleFunc(
 		"POST /db-task",
 		createDbTaskHandler,
+	)
+
+	http.HandleFunc(
+		"PUT /db-task/{id}",
+		updateDbTaskHandler,
 	)
 
 	http.HandleFunc(
