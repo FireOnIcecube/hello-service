@@ -45,6 +45,88 @@ var tasks = []Task{
 
 var nextID = 3
 
+func updateDbTaskHandler(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	databaseURL := "postgres://task_user:task_password@127.0.0.1:5433/task_db?sslmode=disable"
+
+	idString := r.PathValue("id")
+	id, err := strconv.Atoi(idString)
+
+	if err != nil {
+		http.Error(
+			w,
+			"傳遞 id 非數字",
+			http.StatusBadRequest,
+		)
+
+		log.Fatalln(err)
+
+		return
+	}
+
+	var input UpdateTaskRequest
+
+	err = json.NewDecoder(r.Body).Decode(&input)
+
+	if err != nil {
+		http.Error(
+			w,
+			"傳遞資料格式不正確",
+			http.StatusBadRequest,
+		)
+		log.Fatalln(err)
+
+		return
+	}
+
+	conn, err := pgx.Connect(r.Context(), databaseURL)
+
+	if err != nil {
+		http.Error(
+			w,
+			"伺服器內部錯誤",
+			http.StatusInternalServerError,
+		)
+
+		log.Fatalln(err)
+
+		return
+	}
+
+	defer conn.Close(context.Background())
+
+	err = conn.QueryRow(
+		r.Context(),
+
+		`
+		UPDATE tasks
+		SET
+			title = $1,
+			completed = $2
+		WHERE id = $3
+		RETURNING id, title, completed;
+		`,
+	).Scan(
+		input.Title,
+		input.Completed,
+		id,
+	)
+
+	if err != nil {
+		http.Error(
+			w,
+			"伺服器內部錯誤",
+			http.StatusInternalServerError,
+		)
+		log.Fatalln(err)
+
+		return
+	}
+
+}
+
 func createDbTaskHandler(
 	w http.ResponseWriter,
 	r *http.Request,
