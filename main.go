@@ -325,23 +325,8 @@ func getDbTasksHandler(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
-	databaseURL :=
-		"postgres://task_user:task_password@127.0.0.1:5433/task_db?sslmode=disable"
 
-	conn, err := pgx.Connect(r.Context(), databaseURL)
-
-	if err != nil {
-		http.Error(
-			w,
-			fmt.Sprintf("資料庫連線失敗: %v", err),
-			http.StatusInternalServerError,
-		)
-		return
-	}
-
-	defer conn.Close(context.Background())
-
-	rows, err := conn.Query(
+	rows, err := dbPool.Query(
 		r.Context(),
 		"SELECT id,title , completed FROM tasks",
 	)
@@ -355,6 +340,8 @@ func getDbTasksHandler(
 
 		return
 	}
+
+	defer rows.Close()
 
 	tasks := make([]Task, 0)
 	for rows.Next() {
