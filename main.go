@@ -10,6 +10,7 @@ import (
 	"strconv"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Task struct {
@@ -45,6 +46,7 @@ var tasks = []Task{
 }
 
 var nextID = 3
+var dbPool *pgxpool.Pool
 
 func deleteDbTaskHandler(
 	w http.ResponseWriter,
@@ -319,6 +321,87 @@ func createDbTaskHandler(
 
 }
 
+func getDbTasksHandler(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	databaseURL :=
+		"postgres://task_user:task_password@127.0.0.1:5433/task_db?sslmode=disable"
+
+	conn, err := pgx.Connect(r.Context(), databaseURL)
+
+	if err != nil {
+		http.Error(
+			w,
+			fmt.Sprintf("資料庫連線失敗: %v", err),
+			http.StatusInternalServerError,
+		)
+		return
+	}
+
+	defer conn.Close(context.Background())
+
+	rows, err := conn.Query(
+		r.Context(),
+		"SELECT id,title , completed FROM tasks",
+	)
+
+	if err != nil {
+		http.Error(
+			w,
+			fmt.Sprintf("SQL 執行失敗: %v", err),
+			http.StatusInternalServerError,
+		)
+
+		return
+	}
+
+	tasks := make([]Task, 0)
+	for rows.Next() {
+		var task Task
+		err := rows.Scan(
+			&task.ID,
+			&task.Title,
+			&task.Completed,
+		)
+
+		if err != nil {
+			http.Error(
+				w,
+				"讀取資料失敗",
+				http.StatusInternalServerError,
+			)
+			return
+		}
+
+		tasks = append(tasks, task)
+	}
+
+	if err := rows.Err(); err != nil {
+		http.Error(
+			w,
+			"遍歷資料失敗",
+			http.StatusInternalServerError,
+		)
+
+		return
+	}
+
+	w.Header().Set(
+		"Content-Type",
+		"application/json",
+	)
+
+	err = json.NewEncoder(w).Encode(tasks)
+
+	if err != nil {
+		log.Printf(
+			"JSON 編碼失敗: %v", err,
+		)
+	}
+
+}
+
 func deleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 	idString := r.PathValue("id")
 
@@ -467,88 +550,39 @@ func getTasksHandler(
 	}
 }
 
-func getDbTasksHandler(
-	w http.ResponseWriter,
-	r *http.Request,
-) {
+func main() {
+
 	databaseURL :=
 		"postgres://task_user:task_password@127.0.0.1:5433/task_db?sslmode=disable"
 
-	conn, err := pgx.Connect(r.Context(), databaseURL)
+	var err error
 
-	if err != nil {
-		http.Error(
-			w,
-			fmt.Sprintf("資料庫連線失敗: %v", err),
-			http.StatusInternalServerError,
-		)
-		return
-	}
-
-	defer conn.Close(context.Background())
-
-	rows, err := conn.Query(
-		r.Context(),
-		"SELECT id,title , completed FROM tasks",
+	dbPool, err = pgxpool.New(
+		context.Background(),
+		databaseURL,
 	)
 
 	if err != nil {
-		http.Error(
-			w,
-			fmt.Sprintf("SQL 執行失敗: %v", err),
-			http.StatusInternalServerError,
+		log.Fatal(
+			"建立資料庫 connection pool 失敗: ",
+			err,
 		)
-
-		return
 	}
 
-	tasks := make([]Task, 0)
-	for rows.Next() {
-		var task Task
-		err := rows.Scan(
-			&task.ID,
-			&task.Title,
-			&task.Completed,
-		)
-
-		if err != nil {
-			http.Error(
-				w,
-				"讀取資料失敗",
-				http.StatusInternalServerError,
-			)
-			return
-		}
-
-		tasks = append(tasks, task)
-	}
-
-	if err := rows.Err(); err != nil {
-		http.Error(
-			w,
-			"遍歷資料失敗",
-			http.StatusInternalServerError,
-		)
-
-		return
-	}
-
-	w.Header().Set(
-		"Content-Type",
-		"application/json",
+	err = dbPool.Ping(
+		context.Background(),
 	)
 
-	err = json.NewEncoder(w).Encode(tasks)
-
 	if err != nil {
-		log.Printf(
-			"JSON 編碼失敗: %v", err,
+		dbPool.Close()
+
+		log.Fatal(
+			"PostgreSQL 連線失敗: ",
+			err,
 		)
 	}
 
-}
-
-func main() {
+	defer dbPool.Close()
 
 	http.HandleFunc(
 		"GET /db-task",
@@ -593,7 +627,7 @@ func main() {
 
 	log.Println("localhost:8080 上已啟動")
 
-	err := http.ListenAndServe(":8080", mux)
+	err = http.ListenAndServe(":8080", mux)
 	if err != nil {
 		log.Fatal(err)
 	}
