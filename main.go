@@ -52,8 +52,6 @@ func deleteDbTaskHandler(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
-	databaseURL :=
-		"postgres://task_user:task_password@127.0.0.1:5433/task_db?sslmode=disable"
 
 	idString := r.PathValue("id")
 
@@ -68,30 +66,9 @@ func deleteDbTaskHandler(
 		return
 	}
 
-	conn, err := pgx.Connect(
-		r.Context(),
-		databaseURL,
-	)
-
-	if err != nil {
-		log.Printf(
-			"資料庫連線失敗: %v",
-			err,
-		)
-
-		http.Error(
-			w,
-			"伺服器內部錯誤",
-			http.StatusInternalServerError,
-		)
-		return
-	}
-
-	defer conn.Close(context.Background())
-
 	var deletedTaskID int
 
-	err = conn.QueryRow(
+	err = dbPool.QueryRow(
 		r.Context(),
 		`
 		DELETE FROM tasks
@@ -135,7 +112,6 @@ func updateDbTaskHandler(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
-	databaseURL := "postgres://task_user:task_password@127.0.0.1:5433/task_db?sslmode=disable"
 
 	idString := r.PathValue("id")
 	id, err := strconv.Atoi(idString)
@@ -167,24 +143,8 @@ func updateDbTaskHandler(
 		return
 	}
 
-	conn, err := pgx.Connect(r.Context(), databaseURL)
-
-	if err != nil {
-		http.Error(
-			w,
-			"伺服器內部錯誤",
-			http.StatusInternalServerError,
-		)
-
-		log.Fatalln(err)
-
-		return
-	}
-
-	defer conn.Close(context.Background())
-
 	var task Task
-	err = conn.QueryRow(
+	err = dbPool.QueryRow(
 		r.Context(),
 		`
 		UPDATE tasks
@@ -255,7 +215,6 @@ func createDbTaskHandler(
 	r *http.Request,
 
 ) {
-	databaseURL := "postgres://task_user:task_password@127.0.0.1:5433/task_db?sslmode=disable"
 
 	var input CreateTaskRequest
 
@@ -270,22 +229,9 @@ func createDbTaskHandler(
 		return
 	}
 
-	conn, err := pgx.Connect(r.Context(), databaseURL)
-
-	if err != nil {
-		http.Error(
-			w,
-			fmt.Sprintf("資料庫連線失敗: %v", err),
-			http.StatusInternalServerError,
-		)
-		return
-	}
-
-	defer conn.Close(context.Background())
-
 	var task Task
 
-	err = conn.QueryRow(
+	err = dbPool.QueryRow(
 		r.Context(),
 		`
 		INSERT INTO tasks (title)
