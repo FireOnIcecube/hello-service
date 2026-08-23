@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 
 	"github.com/jackc/pgx/v5"
@@ -485,8 +486,14 @@ func getTasksHandler(
 
 func main() {
 
-	databaseURL :=
-		"postgres://task_user:task_password@127.0.0.1:5433/task_db?sslmode=disable"
+	databaseURL, ok :=
+		os.LookupEnv("DATABASE_URL")
+
+	if !ok || databaseURL == "" {
+		log.Fatal(
+			"DATABASE_URL 環境變數未設定",
+		)
+	}
 
 	var err error
 
@@ -562,7 +569,11 @@ func main() {
 
 	err = http.ListenAndServe(":8080", mux)
 	if err != nil {
-		log.Fatal(err)
+		log.Printf(
+			"HTTP Server 發生錯誤: %v",
+			err,
+		)
+		return
 	}
 
 }
