@@ -123,7 +123,7 @@ func updateDbTaskHandler(
 			http.StatusBadRequest,
 		)
 
-		log.Fatalln(err)
+		log.Println(err)
 
 		return
 	}
@@ -138,7 +138,7 @@ func updateDbTaskHandler(
 			"傳遞資料格式不正確",
 			http.StatusBadRequest,
 		)
-		log.Fatalln(err)
+		log.Println(err)
 
 		return
 	}
@@ -173,7 +173,7 @@ func updateDbTaskHandler(
 				http.StatusNotFound,
 			)
 
-			log.Fatalf("找不到對應 id: %v \n", err)
+			log.Printf("找不到對應 id: %v \n", err)
 			return
 		}
 
@@ -182,7 +182,7 @@ func updateDbTaskHandler(
 			"伺服器內部錯誤",
 			http.StatusInternalServerError,
 		)
-		log.Fatalln(err)
+		log.Println(err)
 
 		return
 	}
@@ -204,7 +204,7 @@ func updateDbTaskHandler(
 			"伺服器內部錯誤",
 			http.StatusInternalServerError,
 		)
-		log.Fatalf("json 編碼錯誤:%v \n", err)
+		log.Printf("json 編碼錯誤:%v \n", err)
 		return
 	}
 
