@@ -1,4 +1,23 @@
 services:
+
+  api:
+    build: .
+
+    container_name: learning-api
+
+    environment:
+      DATABASE_URL: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable"
+    
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    ports:
+      - "127.0.0.1:8080:8080"
+
+
+
+
   postgres:
     image: postgres:18
     container_name: learning-postgres
@@ -7,6 +26,17 @@ services:
        POSTGRES_USER: ${POSTGRES_USER}
        POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
        POSTGRES_DB: ${POSTGRES_DB}
+    
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 5 
+      start_period: 5s
 
     ports:
       - "127.0.0.1:${POSTGRES_HOST_PORT}:5432"
