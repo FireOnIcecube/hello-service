@@ -43,7 +43,7 @@ services:
     
     volumes:
       - learning-postgres-data:/var/lib/postgresql
-      - ./seed.sql:/docker-entrypoint-initdb.d/seed.sql:ro
+      # - ./seed.sql:/docker-entrypoint-initdb.d/seed.sql:ro
 
 volumes:
   learning-postgres-data:
