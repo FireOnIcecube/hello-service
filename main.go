@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 
+	"example.com/hello-service/handlers"
 	"example.com/hello-service/models"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -218,11 +219,13 @@ func main() {
 		dbPool: dbPool,
 	}
 
+	handler := handlers.New(dbPool)
+
 	defer dbPool.Close()
 
 	http.HandleFunc(
 		"GET /db-task",
-		app.getDbTasksHandler,
+		handler.GetDbTasks,
 	)
 
 	http.HandleFunc(
