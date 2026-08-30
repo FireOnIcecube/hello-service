@@ -53,7 +53,7 @@ var tasks = []Task{
 var nextID = 3
 var dbPool *pgxpool.Pool
 
-func deleteDbTaskHandler(
+func (app *App) deleteDbTaskHandler(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
@@ -73,7 +73,7 @@ func deleteDbTaskHandler(
 
 	var deletedTaskID int
 
-	err = dbPool.QueryRow(
+	err = app.dbPool.QueryRow(
 		r.Context(),
 		`
 		DELETE FROM tasks
@@ -113,7 +113,7 @@ func deleteDbTaskHandler(
 	)
 }
 
-func updateDbTaskHandler(
+func (app *App) updateDbTaskHandler(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
@@ -149,7 +149,7 @@ func updateDbTaskHandler(
 	}
 
 	var task Task
-	err = dbPool.QueryRow(
+	err = app.dbPool.QueryRow(
 		r.Context(),
 		`
 		UPDATE tasks
@@ -215,7 +215,7 @@ func updateDbTaskHandler(
 
 }
 
-func createDbTaskHandler(
+func (app *App) createDbTaskHandler(
 	w http.ResponseWriter,
 	r *http.Request,
 
@@ -236,7 +236,7 @@ func createDbTaskHandler(
 
 	var task Task
 
-	err = dbPool.QueryRow(
+	err = app.dbPool.QueryRow(
 		r.Context(),
 		`
 		INSERT INTO tasks (title)
@@ -539,17 +539,17 @@ func main() {
 
 	http.HandleFunc(
 		"POST /db-task",
-		createDbTaskHandler,
+		app.createDbTaskHandler,
 	)
 
 	http.HandleFunc(
 		"PUT /db-task/{id}",
-		updateDbTaskHandler,
+		app.updateDbTaskHandler,
 	)
 
 	http.HandleFunc(
 		"DELETE /db-task/{id}",
-		deleteDbTaskHandler,
+		app.deleteDbTaskHandler,
 	)
 
 	http.HandleFunc(
