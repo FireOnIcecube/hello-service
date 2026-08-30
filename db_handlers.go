@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strconv"
 
+	"example.com/hello-service/models"
+
 	"github.com/jackc/pgx/v5"
 )
 
@@ -106,7 +108,7 @@ func (app *App) updateDbTaskHandler(
 		return
 	}
 
-	var task Task
+	var task models.Task
 	err = app.dbPool.QueryRow(
 		r.Context(),
 		`
@@ -192,7 +194,7 @@ func (app *App) createDbTaskHandler(
 		return
 	}
 
-	var task Task
+	var task models.Task
 
 	err = app.dbPool.QueryRow(
 		r.Context(),
@@ -252,9 +254,9 @@ func (app *App) getDbTasksHandler(
 
 	defer rows.Close()
 
-	tasks := make([]Task, 0)
+	tasks := make([]models.Task, 0)
 	for rows.Next() {
-		var task Task
+		var task models.Task
 		err := rows.Scan(
 			&task.ID,
 			&task.Title,

@@ -8,10 +8,11 @@ import (
 	"os"
 	"strconv"
 
+	"example.com/hello-service/models"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var tasks = []Task{
+var tasks = []models.Task{
 	{
 		ID:        1,
 		Title:     "學習 Go JSON",
@@ -133,7 +134,7 @@ func createTaskHandler(
 		return
 	}
 
-	task := Task{
+	task := models.Task{
 		ID:        nextID,
 		Title:     input.Title,
 		Completed: false,
