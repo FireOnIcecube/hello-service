@@ -506,10 +506,6 @@ func main() {
 		databaseURL,
 	)
 
-	app := &App{
-		dbPool: dbPool,
-	}
-
 	if err != nil {
 		log.Fatal(
 			"建立資料庫 connection pool 失敗: ",
@@ -528,6 +524,10 @@ func main() {
 			"PostgreSQL 連線失敗: ",
 			err,
 		)
+	}
+
+	app := &App{
+		dbPool: dbPool,
 	}
 
 	defer dbPool.Close()
