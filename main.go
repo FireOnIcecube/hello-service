@@ -14,6 +14,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+type App struct {
+	dbPool *pgxpool.Pool
+}
+
 type Task struct {
 	ID        int    `json:"id"`
 	Title     string `json:"title"`
@@ -268,12 +272,12 @@ func createDbTaskHandler(
 
 }
 
-func getDbTasksHandler(
+func (app *App) getDbTasksHandler(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
 
-	rows, err := dbPool.Query(
+	rows, err := app.dbPool.Query(
 		r.Context(),
 		"SELECT id,title , completed FROM tasks",
 	)
@@ -497,10 +501,14 @@ func main() {
 
 	var err error
 
-	dbPool, err = pgxpool.New(
+	dbPool, err := pgxpool.New(
 		context.Background(),
 		databaseURL,
 	)
+
+	app := &App{
+		dbPool: dbPool,
+	}
 
 	if err != nil {
 		log.Fatal(
@@ -526,7 +534,7 @@ func main() {
 
 	http.HandleFunc(
 		"GET /db-task",
-		getDbTasksHandler,
+		app.getDbTasksHandler,
 	)
 
 	http.HandleFunc(
