@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -23,9 +22,15 @@ func (h *Handler) GetDbTasks(
 	)
 
 	if err != nil {
+
+		log.Printf(
+			"查詢 tasks 失敗: %v",
+			err,
+		)
+
 		http.Error(
 			w,
-			fmt.Sprintf("SQL 執行失敗: %v", err),
+			"伺服器內部錯誤",
 			http.StatusInternalServerError,
 		)
 
@@ -116,9 +121,15 @@ func (h *Handler) CreateDbTask(
 	)
 
 	if err != nil {
+
+		log.Printf(
+			"SQL 查詢錯誤: %v",
+			err,
+		)
+
 		http.Error(
 			w,
-			fmt.Sprintf("SQL 查詢錯誤: %v", err),
+			"伺服器內部錯誤",
 			http.StatusInternalServerError,
 		)
 		return
@@ -134,6 +145,10 @@ func (h *Handler) CreateDbTask(
 	)
 
 	err = json.NewEncoder(w).Encode(task)
+
+	if err != nil {
+		log.Printf("json 編碼錯誤:%v \n", err)
+	}
 
 }
 
@@ -228,13 +243,7 @@ func (h *Handler) UpdateDbTask(
 	err = json.NewEncoder(w).Encode(task)
 
 	if err != nil {
-		http.Error(
-			w,
-			"伺服器內部錯誤",
-			http.StatusInternalServerError,
-		)
 		log.Printf("json 編碼錯誤:%v \n", err)
-		return
 	}
 
 }
