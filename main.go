@@ -215,10 +215,6 @@ func main() {
 		)
 	}
 
-	app := &App{
-		dbPool: dbPool,
-	}
-
 	handler := handlers.New(dbPool)
 
 	defer dbPool.Close()
@@ -230,17 +226,17 @@ func main() {
 
 	http.HandleFunc(
 		"POST /db-task",
-		app.createDbTaskHandler,
+		handler.CreateDbTask,
 	)
 
 	http.HandleFunc(
 		"PUT /db-task/{id}",
-		app.updateDbTaskHandler,
+		handler.UpdateDbTask,
 	)
 
 	http.HandleFunc(
 		"DELETE /db-task/{id}",
-		app.deleteDbTaskHandler,
+		handler.DeleteDbTask,
 	)
 
 	http.HandleFunc(
