@@ -1,15 +1,17 @@
 package handlers
 
-import "github.com/jackc/pgx/v5/pgxpool"
+import (
+	"example.com/hello-service/repositories"
+)
 
 type Handler struct {
-	dbPool *pgxpool.Pool
+	taskRepository *repositories.TaskRepository
 }
 
 func New(
-	dbPool *pgxpool.Pool,
+	taskRepository *repositories.TaskRepository,
 ) *Handler {
 	return &Handler{
-		dbPool: dbPool,
+		taskRepository: taskRepository,
 	}
 }

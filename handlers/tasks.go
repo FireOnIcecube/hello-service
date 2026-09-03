@@ -16,54 +16,18 @@ func (h *Handler) GetDbTasks(
 	r *http.Request,
 ) {
 
-	rows, err := h.dbPool.Query(
-		r.Context(),
-		"SELECT id,title , completed FROM tasks",
-	)
+	tasks, err := h.taskRepository.GetAll(r.Context())
 
 	if err != nil {
 
 		log.Printf(
-			"查詢 tasks 失敗: %v",
+			"repositories 調用失敗: %v",
 			err,
 		)
 
 		http.Error(
 			w,
 			"伺服器內部錯誤",
-			http.StatusInternalServerError,
-		)
-
-		return
-	}
-
-	defer rows.Close()
-
-	tasks := make([]models.Task, 0)
-	for rows.Next() {
-		var task models.Task
-		err := rows.Scan(
-			&task.ID,
-			&task.Title,
-			&task.Completed,
-		)
-
-		if err != nil {
-			http.Error(
-				w,
-				"讀取資料失敗",
-				http.StatusInternalServerError,
-			)
-			return
-		}
-
-		tasks = append(tasks, task)
-	}
-
-	if err := rows.Err(); err != nil {
-		http.Error(
-			w,
-			"遍歷資料失敗",
 			http.StatusInternalServerError,
 		)
 
