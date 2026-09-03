@@ -60,3 +60,32 @@ func (r *TaskRepository) GetAll(
 	return tasks, nil
 
 }
+
+func (r *TaskRepository) Create(
+	ctx context.Context,
+	title string,
+) (models.Task, error) {
+
+	var task models.Task
+
+	err := r.dbPool.QueryRow(
+		ctx,
+		`
+		INSERT INTO tasks (title)
+		VALUES ($1)
+		RETURNING id , title , completed
+		`,
+		title,
+	).Scan(
+		&task.ID,
+		&task.Title,
+		&task.Completed,
+	)
+
+	if err != nil {
+		return models.Task{}, err
+	}
+
+	return task, nil
+
+}

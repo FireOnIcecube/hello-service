@@ -68,26 +68,12 @@ func (h *Handler) CreateDbTask(
 		return
 	}
 
-	var task models.Task
-
-	err = h.dbPool.QueryRow(
-		r.Context(),
-		`
-		INSERT INTO tasks (title)
-		VALUES ($1) 
-		RETURNING id , title , completed
-		`,
-		input.Title,
-	).Scan(
-		&task.ID,
-		&task.Title,
-		&task.Completed,
-	)
+	task, err := h.taskRepository.Create(r.Context(), input.Title)
 
 	if err != nil {
 
 		log.Printf(
-			"SQL 查詢錯誤: %v",
+			"建立 task 失敗: %v",
 			err,
 		)
 
