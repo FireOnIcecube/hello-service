@@ -2,7 +2,6 @@ package repositories
 
 import (
 	"context"
-	"log"
 
 	"example.com/hello-service/models"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -30,11 +29,6 @@ func (r *TaskRepository) GetAll(
 	)
 
 	if err != nil {
-		log.Printf(
-			"查詢 tasks 失敗: %v",
-			err,
-		)
-
 		return nil, err
 	}
 
@@ -43,6 +37,7 @@ func (r *TaskRepository) GetAll(
 	tasks := make([]models.Task, 0)
 	for rows.Next() {
 		var task models.Task
+
 		err := rows.Scan(
 			&task.ID,
 			&task.Title,
@@ -50,11 +45,6 @@ func (r *TaskRepository) GetAll(
 		)
 
 		if err != nil {
-			log.Printf(
-				"id: %v 的資料寫入時失敗 : %v",
-				task.ID,
-				err,
-			)
 
 			return nil, err
 		}
@@ -63,7 +53,6 @@ func (r *TaskRepository) GetAll(
 	}
 
 	if err := rows.Err(); err != nil {
-		log.Printf("遍歷資料失敗: %v", err)
 
 		return nil, err
 	}
