@@ -10,6 +10,7 @@ import (
 
 	"example.com/hello-service/handlers"
 	"example.com/hello-service/models"
+	"example.com/hello-service/repositories"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -215,7 +216,9 @@ func main() {
 		)
 	}
 
-	handler := handlers.New(dbPool)
+	taskRepository := repositories.NewTaskRepository(dbPool)
+
+	handler := handlers.New(taskRepository)
 
 	defer dbPool.Close()
 

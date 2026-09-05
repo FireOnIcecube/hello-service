@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"example.com/hello-service/models"
+	"example.com/hello-service/repositories"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -16,54 +16,18 @@ func (h *Handler) GetDbTasks(
 	r *http.Request,
 ) {
 
-	rows, err := h.dbPool.Query(
-		r.Context(),
-		"SELECT id,title , completed FROM tasks",
-	)
+	tasks, err := h.taskRepository.GetAll(r.Context())
 
 	if err != nil {
 
 		log.Printf(
-			"查詢 tasks 失敗: %v",
+			"repositories 調用失敗: %v",
 			err,
 		)
 
 		http.Error(
 			w,
 			"伺服器內部錯誤",
-			http.StatusInternalServerError,
-		)
-
-		return
-	}
-
-	defer rows.Close()
-
-	tasks := make([]models.Task, 0)
-	for rows.Next() {
-		var task models.Task
-		err := rows.Scan(
-			&task.ID,
-			&task.Title,
-			&task.Completed,
-		)
-
-		if err != nil {
-			http.Error(
-				w,
-				"讀取資料失敗",
-				http.StatusInternalServerError,
-			)
-			return
-		}
-
-		tasks = append(tasks, task)
-	}
-
-	if err := rows.Err(); err != nil {
-		http.Error(
-			w,
-			"遍歷資料失敗",
 			http.StatusInternalServerError,
 		)
 
@@ -104,26 +68,12 @@ func (h *Handler) CreateDbTask(
 		return
 	}
 
-	var task models.Task
-
-	err = h.dbPool.QueryRow(
-		r.Context(),
-		`
-		INSERT INTO tasks (title)
-		VALUES ($1) 
-		RETURNING id , title , completed
-		`,
-		input.Title,
-	).Scan(
-		&task.ID,
-		&task.Title,
-		&task.Completed,
-	)
+	task, err := h.taskRepository.Create(r.Context(), input.Title)
 
 	if err != nil {
 
 		log.Printf(
-			"SQL 查詢錯誤: %v",
+			"建立 task 失敗: %v",
 			err,
 		)
 
@@ -187,30 +137,11 @@ func (h *Handler) UpdateDbTask(
 		return
 	}
 
-	var task models.Task
-	err = h.dbPool.QueryRow(
-		r.Context(),
-		`
-		UPDATE tasks
-		SET
-			title = $1,
-			completed = $2
-		WHERE id = $3
-		RETURNING id, title, completed;
-		`,
-
-		input.Title,
-		input.Completed,
-		id,
-	).Scan(
-		&task.ID,
-		&task.Title,
-		&task.Completed,
-	)
+	task, err := h.taskRepository.Update(r.Context(), id, input.Title, input.Completed)
 
 	if err != nil {
 
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, repositories.ErrTaskNotFound) {
 			http.Error(
 				w,
 				"修改資料不存在",
@@ -218,6 +149,7 @@ func (h *Handler) UpdateDbTask(
 			)
 
 			log.Printf("找不到對應 id: %v \n", err)
+
 			return
 		}
 
@@ -229,15 +161,12 @@ func (h *Handler) UpdateDbTask(
 		log.Println(err)
 
 		return
+
 	}
 
 	w.Header().Set(
 		"Content-Type",
 		"application/json",
-	)
-
-	w.WriteHeader(
-		http.StatusOK,
 	)
 
 	err = json.NewEncoder(w).Encode(task)
