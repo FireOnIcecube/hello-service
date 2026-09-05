@@ -2,14 +2,18 @@ package repositories
 
 import (
 	"context"
+	"errors"
 
 	"example.com/hello-service/models"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type TaskRepository struct {
 	dbPool *pgxpool.Pool
 }
+
+var ErrTaskNotFound = errors.New("task not found")
 
 func NewTaskRepository(
 	dbPool *pgxpool.Pool,
@@ -81,6 +85,42 @@ func (r *TaskRepository) Create(
 		&task.Title,
 		&task.Completed,
 	)
+
+	if err != nil {
+		return models.Task{}, err
+	}
+
+	return task, nil
+
+}
+
+func (r *TaskRepository) Update(ctx context.Context,
+	id int, title string, completed bool) (models.Task, error) {
+
+	var task models.Task
+
+	err := r.dbPool.QueryRow(
+		ctx,
+		`
+		UPDATE tasks
+		SET
+			title = $1,
+			completed = $2
+		WHERE id = $3
+		RETURNING id, title, completed;
+		`,
+		title,
+		completed,
+		id,
+	).Scan(
+		&task.ID,
+		&task.Title,
+		&task.Completed,
+	)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return models.Task{}, ErrTaskNotFound
+	}
 
 	if err != nil {
 		return models.Task{}, err

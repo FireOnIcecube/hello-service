@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"example.com/hello-service/models"
+	"example.com/hello-service/repositories"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -137,30 +137,11 @@ func (h *Handler) UpdateDbTask(
 		return
 	}
 
-	var task models.Task
-	err = h.dbPool.QueryRow(
-		r.Context(),
-		`
-		UPDATE tasks
-		SET
-			title = $1,
-			completed = $2
-		WHERE id = $3
-		RETURNING id, title, completed;
-		`,
-
-		input.Title,
-		input.Completed,
-		id,
-	).Scan(
-		&task.ID,
-		&task.Title,
-		&task.Completed,
-	)
+	task, err := h.taskRepository.Update(r.Context(), id, input.Title, input.Completed)
 
 	if err != nil {
 
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, repositories.ErrTaskNotFound) {
 			http.Error(
 				w,
 				"修改資料不存在",
@@ -168,6 +149,7 @@ func (h *Handler) UpdateDbTask(
 			)
 
 			log.Printf("找不到對應 id: %v \n", err)
+
 			return
 		}
 
@@ -179,15 +161,12 @@ func (h *Handler) UpdateDbTask(
 		log.Println(err)
 
 		return
+
 	}
 
 	w.Header().Set(
 		"Content-Type",
 		"application/json",
-	)
-
-	w.WriteHeader(
-		http.StatusOK,
 	)
 
 	err = json.NewEncoder(w).Encode(task)
