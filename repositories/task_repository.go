@@ -127,5 +127,33 @@ func (r *TaskRepository) Update(ctx context.Context,
 	}
 
 	return task, nil
+}
+
+func (r *TaskRepository) Delete(ctx context.Context,
+	id int) error {
+
+	var deletedTaskID int
+
+	err := r.dbPool.QueryRow(
+		ctx,
+		`
+			DELETE FROM tasks
+			WHERE id = $1
+			RETURNING id;
+			`,
+		id,
+	).Scan(
+		&deletedTaskID,
+	)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrTaskNotFound
+		}
+
+		return err
+	}
+
+	return nil
 
 }

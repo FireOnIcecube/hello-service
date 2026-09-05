@@ -8,7 +8,6 @@ import (
 	"strconv"
 
 	"example.com/hello-service/repositories"
-	"github.com/jackc/pgx/v5"
 )
 
 func (h *Handler) GetDbTasks(
@@ -195,22 +194,10 @@ func (h *Handler) DeleteDbTask(
 		return
 	}
 
-	var deletedTaskID int
-
-	err = h.dbPool.QueryRow(
-		r.Context(),
-		`
-		DELETE FROM tasks
-		WHERE id = $1
-		RETURNING id;
-		`,
-		id,
-	).Scan(
-		&deletedTaskID,
-	)
+	err = h.taskRepository.Delete(r.Context(), id)
 
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, repositories.ErrTaskNotFound) {
 			http.Error(
 				w,
 				"刪除資料不存在",
