@@ -75,7 +75,7 @@ func TestCreateDbTask(t *testing.T) {
 	// Arrange
 	fakeRepository := fakeTaskRepository{}
 
-	hander := New(&fakeRepository)
+	handler := New(&fakeRepository)
 
 	request := httptest.NewRequest(
 		http.MethodPost,
@@ -88,7 +88,7 @@ func TestCreateDbTask(t *testing.T) {
 	recorder := httptest.NewRecorder()
 
 	// Act
-	hander.CreateDbTask(
+	handler.CreateDbTask(
 		recorder,
 		request,
 	)
