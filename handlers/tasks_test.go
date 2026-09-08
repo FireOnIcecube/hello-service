@@ -13,8 +13,10 @@ import (
 )
 
 type fakeTaskRepository struct {
-	getAllErr   error
-	createTitle string
+	getAllErr    error
+	createTitle  string
+	createCalled bool
+	createErr    error
 }
 
 func (f *fakeTaskRepository) GetAll(
@@ -44,7 +46,12 @@ func (f *fakeTaskRepository) Create(
 	title string,
 ) (models.Task, error) {
 
+	f.createCalled = true
 	f.createTitle = title
+
+	if f.createErr != nil {
+		return models.Task{}, f.createErr
+	}
 
 	return models.Task{
 		ID:        10,
@@ -68,6 +75,44 @@ func (f *fakeTaskRepository) Delete(
 	id int,
 ) error {
 	return nil
+}
+
+func TestCreateDbTaskInvalidJson(t *testing.T) {
+	// Arrange
+
+	fakeRepository := fakeTaskRepository{
+		createErr: errors.New(
+			"create failed",
+		),
+	}
+
+	handler := New(&fakeRepository)
+
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/db-task",
+		strings.NewReader(
+			`{"title":`,
+		),
+	)
+
+	recorder := httptest.NewRecorder()
+
+	// Act
+
+	handler.CreateDbTask(
+		recorder,
+		request,
+	)
+
+	// Assert
+
+	if fakeRepository.createCalled {
+		t.Error(
+			"JSON 無效時，不應呼叫 Repository.Create",
+		)
+	}
+
 }
 
 func TestCreateDbTask(t *testing.T) {
