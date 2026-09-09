@@ -77,7 +77,7 @@ func (f *fakeTaskRepository) Delete(
 	return nil
 }
 
-func TestCreatDbTaskRepositoryError(t *testing.T) {
+func TestCreateDbTaskRepositoryError(t *testing.T) {
 
 	// Arrange
 	fakeRepository := fakeTaskRepository{
@@ -108,7 +108,7 @@ func TestCreatDbTaskRepositoryError(t *testing.T) {
 	if recorder.Code != http.StatusInternalServerError {
 		t.Fatalf(
 			"預期 status code 為: %d , 實際得到: %d",
-			http.StatusCreated,
+			http.StatusInternalServerError,
 			recorder.Code,
 		)
 	}
@@ -129,7 +129,7 @@ func TestCreatDbTaskRepositoryError(t *testing.T) {
 
 }
 
-func TestCreateDbTaskInvalidJson(t *testing.T) {
+func TestCreateDbTaskInvalidJSON(t *testing.T) {
 	// Arrange
 
 	fakeRepository := fakeTaskRepository{
@@ -162,6 +162,14 @@ func TestCreateDbTaskInvalidJson(t *testing.T) {
 	if fakeRepository.createCalled {
 		t.Error(
 			"JSON 無效時，不應呼叫 Repository.Create",
+		)
+	}
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf(
+			"預期 status code 為 %d，實際得到 %d",
+			http.StatusBadRequest,
+			recorder.Code,
 		)
 	}
 
