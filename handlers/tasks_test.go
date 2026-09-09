@@ -77,6 +77,58 @@ func (f *fakeTaskRepository) Delete(
 	return nil
 }
 
+func TestCreatDbTaskRepositoryError(t *testing.T) {
+
+	// Arrange
+	fakeRepository := fakeTaskRepository{
+		createErr: errors.New(
+			"create failed",
+		),
+	}
+
+	handler := New(&fakeRepository)
+
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/db-task",
+		strings.NewReader(
+			`{"title":"Learn Testing"}`,
+		),
+	)
+
+	recorder := httptest.NewRecorder()
+
+	// Act
+	handler.CreateDbTask(
+		recorder,
+		request,
+	)
+
+	// Assert
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf(
+			"預期 status code 為: %d , 實際得到: %d",
+			http.StatusCreated,
+			recorder.Code,
+		)
+	}
+
+	if !fakeRepository.createCalled {
+		t.Error(
+			"預期 Repository.Create 被呼叫",
+		)
+	}
+
+	if fakeRepository.createTitle != "Learn Testing" {
+		t.Errorf(
+			"預期 Repository 收到 title %q，實際得到 %q",
+			"Learn Testing",
+			fakeRepository.createTitle,
+		)
+	}
+
+}
+
 func TestCreateDbTaskInvalidJson(t *testing.T) {
 	// Arrange
 
