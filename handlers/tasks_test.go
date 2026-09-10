@@ -4,13 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 
 	"example.com/hello-service/models"
 )
+
+var FakeNotFoundErr = errors.New("not found")
 
 type fakeTaskRepository struct {
 	getAllErr error
@@ -19,11 +23,12 @@ type fakeTaskRepository struct {
 	createCalled bool
 	createErr    error
 
-	updateId        int
-	updateTitle     string
-	updateCompleted bool
-	updateCalled    bool
-	updateErr       error
+	updateId          int
+	updateTitle       string
+	updateCompleted   bool
+	updateCalled      bool
+	updateErr         error
+	updateNotFoundErr error
 }
 
 func (f *fakeTaskRepository) GetAll(
@@ -75,7 +80,25 @@ func (f *fakeTaskRepository) Update(
 	completed bool,
 ) (models.Task, error) {
 
-	return models.Task{}, nil
+	f.updateCalled = true
+	f.updateId = id
+	f.updateTitle = title
+	f.updateCompleted = completed
+
+	if f.updateErr != nil {
+
+		if f.updateNotFoundErr != nil {
+			return models.Task{}, f.updateNotFoundErr
+		}
+
+		return models.Task{}, f.updateErr
+	}
+
+	return models.Task{
+		ID:        id,
+		Title:     title,
+		Completed: completed,
+	}, nil
 }
 
 func (f *fakeTaskRepository) Delete(
@@ -85,20 +108,28 @@ func (f *fakeTaskRepository) Delete(
 	return nil
 }
 
-func TestUpdateDbTask() {
+func TestUpdateDbTask(t *testing.T) {
 	// Arrange
 	fakeRepository := fakeTaskRepository{}
 
 	handler := New(&fakeRepository)
 
-	request := httptest.NewRequest(http.MethodPut,
-		"/db-tesk/10",
-		strings.NewReader("test"),
+	var targetId = 10
+	var targetTitle = "test"
+	var targetCompleted = false
+
+	request := httptest.NewRequest(
+		http.MethodPut,
+		fmt.Sprintf("/db-task/%d", targetId),
+		strings.NewReader(
+			fmt.Sprintf(`{"title": %v , "completed": %t }`,
+				targetTitle, targetCompleted),
+		),
 	)
 
 	request.SetPathValue(
 		"id",
-		"10",
+		strconv.Itoa(targetId),
 	)
 
 	recorder := httptest.NewRecorder()
@@ -107,6 +138,33 @@ func TestUpdateDbTask() {
 	handler.UpdateDbTask(recorder, request)
 
 	// Assert
+	if !fakeRepository.updateCalled {
+		t.Fatal("應該呼叫 Repository.Update")
+	}
+
+	if fakeRepository.updateId != targetId {
+		t.Errorf(
+			"預期操作 id 為 %d ， 實際操作 id 為 %d",
+			targetId,
+			fakeRepository.updateId,
+		)
+	}
+
+	if fakeRepository.updateTitle != targetTitle {
+		t.Errorf(
+			"預期輸入 title 為 %v ， 實際輸入 title 為 %v",
+			targetTitle,
+			fakeRepository.updateTitle,
+		)
+	}
+
+	if fakeRepository.updateCompleted != targetCompleted {
+		t.Errorf(
+			"預期輸入 completed 為 %t ， 實際輸入 completed 為 %t",
+			targetCompleted,
+			fakeRepository.updateCompleted,
+		)
+	}
 
 }
 
