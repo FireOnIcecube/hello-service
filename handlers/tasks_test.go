@@ -13,10 +13,17 @@ import (
 )
 
 type fakeTaskRepository struct {
-	getAllErr    error
+	getAllErr error
+
 	createTitle  string
 	createCalled bool
 	createErr    error
+
+	updateId        int
+	updateTitle     string
+	updateCompleted bool
+	updateCalled    bool
+	updateErr       error
 }
 
 func (f *fakeTaskRepository) GetAll(
@@ -67,6 +74,7 @@ func (f *fakeTaskRepository) Update(
 	title string,
 	completed bool,
 ) (models.Task, error) {
+
 	return models.Task{}, nil
 }
 
@@ -75,6 +83,31 @@ func (f *fakeTaskRepository) Delete(
 	id int,
 ) error {
 	return nil
+}
+
+func TestUpdateDbTask() {
+	// Arrange
+	fakeRepository := fakeTaskRepository{}
+
+	handler := New(&fakeRepository)
+
+	request := httptest.NewRequest(http.MethodPut,
+		"/db-tesk/10",
+		strings.NewReader("test"),
+	)
+
+	request.SetPathValue(
+		"id",
+		"10",
+	)
+
+	recorder := httptest.NewRecorder()
+
+	// Act
+	handler.UpdateDbTask(recorder, request)
+
+	// Assert
+
 }
 
 func TestCreateDbTaskRepositoryError(t *testing.T) {
