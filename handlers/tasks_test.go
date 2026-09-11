@@ -134,6 +134,15 @@ func TestUpdateDbTaskInvalidId(t *testing.T) {
 
 	// Assert
 
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf(
+			"預期 status code 為 %d，實際得到 %d，response: %s",
+			http.StatusBadRequest,
+			recorder.Code,
+			recorder.Body.String(),
+		)
+	}
+
 	if fakeRepository.updateCalled {
 		t.Fatal(
 			"請求 ID 格式錯誤時，不應呼叫 Repository.Update",
@@ -155,7 +164,7 @@ func TestUpdateDbTask(t *testing.T) {
 		http.MethodPut,
 		fmt.Sprintf("/db-task/%d", targetId),
 		strings.NewReader(
-			fmt.Sprintf(`{"title": %v , "completed": %t }`,
+			fmt.Sprintf(`{"title": %q , "completed": %t }`,
 				targetTitle, targetCompleted),
 		),
 	)
@@ -171,6 +180,16 @@ func TestUpdateDbTask(t *testing.T) {
 	handler.UpdateDbTask(recorder, request)
 
 	// Assert
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf(
+			"預期 status code 為 %d，實際得到 %d，response: %s",
+			http.StatusOK,
+			recorder.Code,
+			recorder.Body.String(),
+		)
+	}
+
 	if !fakeRepository.updateCalled {
 		t.Fatal("應該呼叫 Repository.Update")
 	}
