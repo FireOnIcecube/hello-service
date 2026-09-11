@@ -108,6 +108,39 @@ func (f *fakeTaskRepository) Delete(
 	return nil
 }
 
+func TestUpdateDbTaskInvalidId(t *testing.T) {
+	// Arrange
+	fakeRepository := fakeTaskRepository{}
+	handler := New(&fakeRepository)
+
+	var invalidId = "bad"
+
+	request := httptest.NewRequest(
+		http.MethodPut,
+		fmt.Sprintf("/db-task/%v", invalidId),
+		strings.NewReader(
+			`{"title":"invalid id request"}`,
+		))
+
+	request.SetPathValue(
+		"id",
+		invalidId,
+	)
+
+	recorder := httptest.NewRecorder()
+
+	// Act
+	handler.UpdateDbTask(recorder, request)
+
+	// Assert
+
+	if fakeRepository.updateCalled {
+		t.Fatal(
+			"請求 ID 格式錯誤時，不應呼叫 Repository.Update",
+		)
+	}
+}
+
 func TestUpdateDbTask(t *testing.T) {
 	// Arrange
 	fakeRepository := fakeTaskRepository{}
