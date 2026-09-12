@@ -102,7 +102,42 @@ func (f *fakeTaskRepository) Delete(
 	ctx context.Context,
 	id int,
 ) error {
+	f.deleteCalled = true
+
+	if f.deleteErr != nil {
+		return f.deleteErr
+	}
+
 	return nil
+}
+
+func TestDeleteDbTaskError(t *testing.T) {
+	// Arrange
+	fakeRepository := fakeTaskRepository{
+		deleteErr: errors.New(" delete task error "),
+	}
+
+	handler := New(&fakeRepository)
+
+	request := httptest.NewRequest(http.MethodDelete, "/db-task/10", nil)
+	request.SetPathValue("id", "10")
+
+	recorder := httptest.NewRecorder()
+
+	// Act
+	handler.DeleteDbTask(recorder, request)
+
+	// Assert
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf("預期 status code 為: %d , 實際為: %d , \n response: %s ",
+			http.StatusNotFound,
+			recorder.Code,
+			recorder.Body.String())
+	}
+
+	if !fakeRepository.deleteCalled {
+		t.Fatalf("Repository.Delete 應該被呼叫, \n response: %s", recorder.Body.String())
+	}
 }
 
 func TestDeleteDbTaskNotFound(t *testing.T) {
