@@ -12,9 +12,8 @@ import (
 	"testing"
 
 	"example.com/hello-service/models"
+	"example.com/hello-service/repositories"
 )
-
-var fakeNotFoundErr = errors.New("not found")
 
 type fakeTaskRepository struct {
 	getAllErr error
@@ -177,6 +176,58 @@ func TestUpdateDbTaskInvalidId(t *testing.T) {
 			"請求 ID 格式錯誤時，不應呼叫 Repository.Update",
 		)
 	}
+}
+
+// func TestUpdateDbTaskError(t *testing.T) {
+
+// 	// Arrange
+// 	fakeTaskRepository := fakeTaskRepository{
+// 		updateErr: errors.New("internal error"),
+// 	}
+
+// 	handler := New(&fakeTaskRepository)
+
+// 	request := httptest.NewRequest(http.MethodPut,"/db-task/10",strings.NewReader())
+// 	// Act
+// 	// Assert
+
+// }
+
+func TestUpdateDbTaskNotFound(t *testing.T) {
+
+	// Arrange
+	fakeTaskRepository := fakeTaskRepository{
+		updateErr: repositories.ErrTaskNotFound,
+	}
+
+	handler := New(&fakeTaskRepository)
+
+	request := httptest.NewRequest(http.MethodPut, "/db-task/10",
+		strings.NewReader(
+			`{"title": "notFound"}`,
+		))
+
+	request.SetPathValue("id", "10")
+
+	recorder := httptest.NewRecorder()
+
+	// Act
+	handler.UpdateDbTask(recorder, request)
+
+	// Assert
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf(
+			"預期 status code 為 %d，實際得到 %d，response: %s",
+			http.StatusNotFound,
+			recorder.Code,
+			recorder.Body.String(),
+		)
+	}
+
+	if !fakeTaskRepository.updateCalled {
+		t.Fatal("應該呼叫 Repository.Update")
+	}
+
 }
 
 func TestUpdateDbTask(t *testing.T) {
