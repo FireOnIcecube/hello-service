@@ -178,29 +178,48 @@ func TestUpdateDbTaskInvalidId(t *testing.T) {
 	}
 }
 
-// func TestUpdateDbTaskError(t *testing.T) {
+func TestUpdateDbTaskError(t *testing.T) {
 
-// 	// Arrange
-// 	fakeTaskRepository := fakeTaskRepository{
-// 		updateErr: errors.New("internal error"),
-// 	}
+	// Arrange
+	fakeTaskRepository := fakeTaskRepository{
+		updateErr: errors.New("internal error"),
+	}
 
-// 	handler := New(&fakeTaskRepository)
+	handler := New(&fakeTaskRepository)
 
-// 	request := httptest.NewRequest(http.MethodPut,"/db-task/10",strings.NewReader())
-// 	// Act
-// 	// Assert
+	request := httptest.NewRequest(http.MethodPut, "/db-task/10", strings.NewReader(
+		`{"title":"internalError"}`,
+	))
+	request.SetPathValue("id", "10")
 
-// }
+	recorder := httptest.NewRecorder()
+
+	// Act
+	handler.UpdateDbTask(recorder, request)
+
+	// Assert
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf("預期 status code 為: %d , 實際拿到 %d , response: %s ",
+			http.StatusInternalServerError,
+			recorder.Code,
+			recorder.Body.String(),
+		)
+	}
+
+	if !fakeTaskRepository.updateCalled {
+		t.Fatal("應該呼叫 Repository.Update")
+	}
+
+}
 
 func TestUpdateDbTaskNotFound(t *testing.T) {
 
 	// Arrange
-	fakeTaskRepository := fakeTaskRepository{
+	fakeRepository := fakeTaskRepository{
 		updateErr: repositories.ErrTaskNotFound,
 	}
 
-	handler := New(&fakeTaskRepository)
+	handler := New(&fakeRepository)
 
 	request := httptest.NewRequest(http.MethodPut, "/db-task/10",
 		strings.NewReader(
@@ -224,7 +243,7 @@ func TestUpdateDbTaskNotFound(t *testing.T) {
 		)
 	}
 
-	if !fakeTaskRepository.updateCalled {
+	if !fakeRepository.updateCalled {
 		t.Fatal("應該呼叫 Repository.Update")
 	}
 
@@ -287,27 +306,27 @@ func TestUpdateDbTask(t *testing.T) {
 		)
 	}
 
-	if fakeRepository.updateId != targetId {
+	if task.ID != targetId {
 		t.Errorf(
 			"預期操作 id 為 %d ， 實際操作 id 為 %d",
 			targetId,
-			fakeRepository.updateId,
+			task.ID,
 		)
 	}
 
-	if fakeRepository.updateTitle != targetTitle {
+	if task.Title != targetTitle {
 		t.Errorf(
 			"預期輸入 title 為 %v ， 實際輸入 title 為 %v",
 			targetTitle,
-			fakeRepository.updateTitle,
+			task.Title,
 		)
 	}
 
-	if fakeRepository.updateCompleted != targetCompleted {
+	if task.Completed != targetCompleted {
 		t.Errorf(
 			"預期輸入 completed 為 %t ， 實際輸入 completed 為 %t",
 			targetCompleted,
-			fakeRepository.updateCompleted,
+			task.Completed,
 		)
 	}
 
