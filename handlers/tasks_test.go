@@ -105,12 +105,41 @@ func (f *fakeTaskRepository) Delete(
 	return nil
 }
 
+func TestDeleteDbTaskNotFound(t *testing.T) {
+	// Arrange
+	fakeRepository := fakeTaskRepository{
+		deleteErr: repositories.ErrTaskNotFound,
+	}
+
+	handler := New(&fakeRepository)
+
+	request := httptest.NewRequest(http.MethodDelete, "/db-task/10", nil)
+	request.SetPathValue("id", "10")
+
+	recorder := httptest.NewRecorder()
+
+	// Act
+	handler.DeleteDbTask(recorder, request)
+
+	// Assert
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("預期 status code 為: %d , 實際為: %d , \n response: %s ",
+			http.StatusNotFound,
+			recorder.Code,
+			recorder.Body.String())
+	}
+
+	if fakeRepository.deleteCalled {
+		t.Fatalf("Repository.Delete 不應被呼叫, \n response: %s", recorder.Body.String())
+	}
+}
+
 func TestDeleteDbTaskInvalidId(t *testing.T) {
 	// Arrange
 	fakeRepository := fakeTaskRepository{}
 	handler := New(&fakeRepository)
 
-	request := httptest.NewRequest(http.MethodDelete, "/db-task/10", nil)
+	request := httptest.NewRequest(http.MethodDelete, "/db-task/invalid", nil)
 	request.SetPathValue("id", "invalid")
 
 	recorder := httptest.NewRecorder()
@@ -128,7 +157,7 @@ func TestDeleteDbTaskInvalidId(t *testing.T) {
 	}
 
 	if fakeRepository.deleteCalled {
-		t.Fatalf("Repository.Delete 不應被呼叫")
+		t.Fatalf("Repository.Delete 不應被呼叫, \n response: %s", recorder.Body.String())
 	}
 }
 
