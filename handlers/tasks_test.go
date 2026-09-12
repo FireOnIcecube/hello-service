@@ -27,6 +27,9 @@ type fakeTaskRepository struct {
 	updateCompleted bool
 	updateCalled    bool
 	updateErr       error
+
+	deleteErr    error
+	deleteCalled bool
 }
 
 func (f *fakeTaskRepository) GetAll(
@@ -100,6 +103,32 @@ func (f *fakeTaskRepository) Delete(
 	id int,
 ) error {
 	return nil
+}
+
+func TestDeleteDbTask(t *testing.T) {
+	// Arrage
+	fakeRepository := fakeTaskRepository{}
+	handler := New(&fakeRepository)
+
+	request := httptest.NewRequest(http.MethodDelete, "/db-task/10", nil)
+	request.SetPathValue("id", "10")
+
+	recorder := httptest.NewRecorder()
+
+	// Act
+	handler.DeleteDbTask(recorder, request)
+
+	// Assert
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("預期 status code 為: %d , 實際收到: %d , response: %s",
+			http.StatusNoContent,
+			recorder.Code,
+			recorder.Body.String())
+	}
+
+	if !fakeRepository.deleteCalled {
+		t.Fatal("應該呼叫 Repository.Delete")
+	}
 }
 
 func TestUpdateDbTaskInvalidJson(t *testing.T) {
