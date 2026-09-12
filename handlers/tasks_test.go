@@ -14,7 +14,7 @@ import (
 	"example.com/hello-service/models"
 )
 
-var FakeNotFoundErr = errors.New("not found")
+var fakeNotFoundErr = errors.New("not found")
 
 type fakeTaskRepository struct {
 	getAllErr error
@@ -23,12 +23,11 @@ type fakeTaskRepository struct {
 	createCalled bool
 	createErr    error
 
-	updateId          int
-	updateTitle       string
-	updateCompleted   bool
-	updateCalled      bool
-	updateErr         error
-	updateNotFoundErr error
+	updateId        int
+	updateTitle     string
+	updateCompleted bool
+	updateCalled    bool
+	updateErr       error
 }
 
 func (f *fakeTaskRepository) GetAll(
@@ -86,10 +85,6 @@ func (f *fakeTaskRepository) Update(
 	f.updateCompleted = completed
 
 	if f.updateErr != nil {
-
-		if f.updateNotFoundErr != nil {
-			return models.Task{}, f.updateNotFoundErr
-		}
 
 		return models.Task{}, f.updateErr
 	}
