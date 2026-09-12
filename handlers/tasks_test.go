@@ -181,11 +181,11 @@ func TestUpdateDbTaskInvalidId(t *testing.T) {
 func TestUpdateDbTaskError(t *testing.T) {
 
 	// Arrange
-	fakeTaskRepository := fakeTaskRepository{
+	fakeRepository := fakeTaskRepository{
 		updateErr: errors.New("internal error"),
 	}
 
-	handler := New(&fakeTaskRepository)
+	handler := New(&fakeRepository)
 
 	request := httptest.NewRequest(http.MethodPut, "/db-task/10", strings.NewReader(
 		`{"title":"internalError"}`,
@@ -206,7 +206,7 @@ func TestUpdateDbTaskError(t *testing.T) {
 		)
 	}
 
-	if !fakeTaskRepository.updateCalled {
+	if !fakeRepository.updateCalled {
 		t.Fatal("應該呼叫 Repository.Update")
 	}
 
@@ -500,11 +500,11 @@ func TestCreateDbTask(t *testing.T) {
 func TestGetDbTasksRepositoryError(t *testing.T) {
 
 	// Arrange
-	fakeTaskRepository := fakeTaskRepository{
+	fakeRepository := fakeTaskRepository{
 		getAllErr: errors.New("repositories failed"),
 	}
 
-	handler := New(&fakeTaskRepository)
+	handler := New(&fakeRepository)
 
 	request := httptest.NewRequest(
 		http.MethodGet,
