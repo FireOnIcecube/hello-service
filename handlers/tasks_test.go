@@ -108,6 +108,40 @@ func (f *fakeTaskRepository) Delete(
 	return nil
 }
 
+func TestUpdateDbTaskInvalidJson(t *testing.T) {
+	// Arrange
+	fakeRepository := fakeTaskRepository{}
+
+	handler := New(&fakeRepository)
+
+	request := httptest.NewRequest(http.MethodPut,
+		"/db-test/10",
+		strings.NewReader(`{"title":"invalid}`),
+	)
+
+	request.SetPathValue("id", "10")
+	recorder := httptest.NewRecorder()
+
+	// Act
+	handler.UpdateDbTask(recorder, request)
+
+	// Assert
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf(
+			"預期 status code 為 %d，實際得到 %d，response: %s",
+			http.StatusBadRequest,
+			recorder.Code,
+			recorder.Body.String(),
+		)
+
+	}
+
+	if fakeRepository.updateCalled {
+		t.Fatal("JSON 無效時，不應呼叫 Repository.Update")
+	}
+
+}
+
 func TestUpdateDbTaskInvalidId(t *testing.T) {
 	// Arrange
 	fakeRepository := fakeTaskRepository{}
@@ -192,6 +226,19 @@ func TestUpdateDbTask(t *testing.T) {
 
 	if !fakeRepository.updateCalled {
 		t.Fatal("應該呼叫 Repository.Update")
+	}
+
+	var task models.Task
+
+	err := json.NewDecoder(
+		recorder.Body,
+	).Decode(&task)
+
+	if err != nil {
+		t.Fatalf(
+			"response JSON 解碼失敗: %v",
+			err,
+		)
 	}
 
 	if fakeRepository.updateId != targetId {
