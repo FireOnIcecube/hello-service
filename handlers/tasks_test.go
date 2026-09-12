@@ -105,6 +105,33 @@ func (f *fakeTaskRepository) Delete(
 	return nil
 }
 
+func TestDeleteDbTaskInvalidId(t *testing.T) {
+	// Arrange
+	fakeRepository := fakeTaskRepository{}
+	handler := New(&fakeRepository)
+
+	request := httptest.NewRequest(http.MethodDelete, "/db-task/10", nil)
+	request.SetPathValue("id", "invalid")
+
+	recorder := httptest.NewRecorder()
+
+	// Act
+	handler.DeleteDbTask(recorder, request)
+
+	// Assert
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("預期 status code 為: %d , 實際 status code: %d , \n response: %s",
+			http.StatusBadRequest,
+			recorder.Code,
+			recorder.Body.String(),
+		)
+	}
+
+	if fakeRepository.deleteCalled {
+		t.Fatalf("Repository.Delete 不應被呼叫")
+	}
+}
+
 func TestDeleteDbTask(t *testing.T) {
 	// Arrage
 	fakeRepository := fakeTaskRepository{}
