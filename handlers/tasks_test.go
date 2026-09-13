@@ -220,6 +220,10 @@ func TestDeleteDbTask(t *testing.T) {
 	if !fakeRepository.deleteCalled {
 		t.Fatal("應該呼叫 Repository.Delete")
 	}
+
+	if recorder.Body.Len() != 0 {
+		t.Errorf("不應有任何回傳值 , response: %s \n", recorder.Body.String())
+	}
 }
 
 func TestUpdateDbTaskInvalidJson(t *testing.T) {
