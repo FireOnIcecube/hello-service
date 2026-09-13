@@ -30,6 +30,7 @@ type fakeTaskRepository struct {
 
 	deleteErr    error
 	deleteCalled bool
+	deleteId     int
 }
 
 func (f *fakeTaskRepository) GetAll(
@@ -103,6 +104,7 @@ func (f *fakeTaskRepository) Delete(
 	id int,
 ) error {
 	f.deleteCalled = true
+	f.deleteId = id
 
 	if f.deleteErr != nil {
 		return f.deleteErr
@@ -164,8 +166,8 @@ func TestDeleteDbTaskNotFound(t *testing.T) {
 			recorder.Body.String())
 	}
 
-	if fakeRepository.deleteCalled {
-		t.Fatalf("Repository.Delete 不應被呼叫, \n response: %s", recorder.Body.String())
+	if !fakeRepository.deleteCalled {
+		t.Fatal("應該呼叫 Repository.Delete")
 	}
 }
 
@@ -219,6 +221,14 @@ func TestDeleteDbTask(t *testing.T) {
 
 	if !fakeRepository.deleteCalled {
 		t.Fatal("應該呼叫 Repository.Delete")
+	}
+
+	if fakeRepository.deleteId != 10 {
+		t.Errorf(
+			"預期 Repository.Delete 收到 id %d，實際得到 %d",
+			10,
+			fakeRepository.deleteId,
+		)
 	}
 
 	if recorder.Body.Len() != 0 {
