@@ -199,42 +199,128 @@ func TestDeleteDbTaskInvalidId(t *testing.T) {
 }
 
 func TestDeleteDbTask(t *testing.T) {
-	// Arrage
-	fakeRepository := fakeTaskRepository{}
-	handler := New(&fakeRepository)
-
-	request := httptest.NewRequest(http.MethodDelete, "/db-task/10", nil)
-	request.SetPathValue("id", "10")
-
-	recorder := httptest.NewRecorder()
-
-	// Act
-	handler.DeleteDbTask(recorder, request)
-
-	// Assert
-	if recorder.Code != http.StatusNoContent {
-		t.Fatalf("預期 status code 為: %d , 實際收到: %d , response: %s",
-			http.StatusNoContent,
-			recorder.Code,
-			recorder.Body.String())
+	tests := []struct {
+		name       string
+		pathID     string
+		deleteErr  error
+		wantStatus int
+		wantCalled bool
+	}{
+		{
+			name:       "success",
+			pathID:     "10",
+			deleteErr:  nil,
+			wantStatus: http.StatusNoContent,
+			wantCalled: true,
+		},
+		{
+			name:       "invalid id",
+			pathID:     "invalid",
+			deleteErr:  nil,
+			wantStatus: http.StatusBadRequest,
+			wantCalled: false,
+		}, {
+			name:       "task not found",
+			pathID:     "10",
+			deleteErr:  repositories.ErrTaskNotFound,
+			wantStatus: http.StatusNotFound,
+			wantCalled: true,
+		}, {
+			name:       "repository error",
+			pathID:     "10",
+			deleteErr:  errors.New("delete failed"),
+			wantStatus: http.StatusInternalServerError,
+			wantCalled: true,
+		},
 	}
 
-	if !fakeRepository.deleteCalled {
-		t.Fatal("應該呼叫 Repository.Delete")
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 
-	if fakeRepository.deleteId != 10 {
-		t.Errorf(
-			"預期 Repository.Delete 收到 id %d，實際得到 %d",
-			10,
-			fakeRepository.deleteId,
-		)
-	}
+			// Arrange
+			fakeRepository := fakeTaskRepository{
+				deleteErr: tt.deleteErr,
+			}
+			handler := New(&fakeRepository)
 
-	if recorder.Body.Len() != 0 {
-		t.Errorf("不應有任何回傳值 , response: %s \n", recorder.Body.String())
+			request := httptest.NewRequest(http.MethodDelete, "/db-task/"+tt.pathID, nil)
+			request.SetPathValue("id", tt.pathID)
+
+			recorder := httptest.NewRecorder()
+
+			// Act
+			handler.DeleteDbTask(recorder, request)
+
+			// Assert
+			if recorder.Code != tt.wantStatus {
+				t.Fatalf(
+					"預期 status %d，實際得到 %d",
+					tt.wantStatus,
+					recorder.Code,
+				)
+			}
+
+			if fakeRepository.deleteCalled != tt.wantCalled {
+				t.Errorf(
+					"預期 deleteCalled=%t，實際為 %t",
+					tt.wantCalled,
+					fakeRepository.deleteCalled,
+				)
+			}
+
+			if tt.wantCalled {
+
+				if tt.pathID != strconv.Itoa(fakeRepository.deleteId) {
+					t.Errorf(
+						"預期操作 id 為 %v ， 實際操作 id 為 %v",
+						tt.pathID,
+						fakeRepository.deleteId,
+					)
+				}
+			}
+
+		})
+
 	}
 }
+
+// func TestDeleteDbTask(t *testing.T) {
+// 	// Arrage
+// 	fakeRepository := fakeTaskRepository{}
+// 	handler := New(&fakeRepository)
+
+// 	request := httptest.NewRequest(http.MethodDelete, "/db-task/10", nil)
+// 	request.SetPathValue("id", "10")
+
+// 	recorder := httptest.NewRecorder()
+
+// 	// Act
+// 	handler.DeleteDbTask(recorder, request)
+
+// 	// Assert
+// 	if recorder.Code != http.StatusNoContent {
+// 		t.Fatalf("預期 status code 為: %d , 實際收到: %d , response: %s",
+// 			http.StatusNoContent,
+// 			recorder.Code,
+// 			recorder.Body.String())
+// 	}
+
+// 	if !fakeRepository.deleteCalled {
+// 		t.Fatal("應該呼叫 Repository.Delete")
+// 	}
+
+// 	if fakeRepository.deleteId != 10 {
+// 		t.Errorf(
+// 			"預期 Repository.Delete 收到 id %d，實際得到 %d",
+// 			10,
+// 			fakeRepository.deleteId,
+// 		)
+// 	}
+
+// 	if recorder.Body.Len() != 0 {
+// 		t.Errorf("不應有任何回傳值 , response: %s \n", recorder.Body.String())
+// 	}
+// }
 
 func TestUpdateDbTaskInvalidJson(t *testing.T) {
 	// Arrange
