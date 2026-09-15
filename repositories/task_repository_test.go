@@ -8,6 +8,27 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// List
+func TestTaskRepositoryGetAll(t *testing.T) {
+	// 目標: 測試 List 功能是否正常運作
+
+	// Arrange
+	// 連接資料庫
+	// 建立 db Pool
+	// 清空資料
+	// 放入測試資料
+
+	// Act
+
+	// Assert
+
+	// 檢查是否有錯誤
+	// 檢查資料筆數
+	// 核對資料
+
+}
+
+// Create
 func TestTaskRepositoryCreate(t *testing.T) {
 	databaseURL, ok := os.LookupEnv(
 		"TEST_DATABASE_URL",
