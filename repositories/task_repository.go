@@ -29,7 +29,9 @@ func (r *TaskRepository) GetAll(
 
 	rows, err := r.dbPool.Query(
 		ctx,
-		"SELECT id,title,completed FROM tasks",
+		`SELECT id,title,completed 
+		FROM tasks 
+		ORDER BY id;`,
 	)
 
 	if err != nil {
