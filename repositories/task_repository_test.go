@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 
@@ -14,17 +15,117 @@ func TestTaskRepositoryGetAll(t *testing.T) {
 
 	// Arrange
 	// 連接資料庫
+	databaseURL, ok := os.LookupEnv(
+		"TEST_DATABASE_URL",
+	)
+
+	if !ok || databaseURL == "" {
+		t.Skip(
+			"TEST_DATABASE_URL 未設定，跳過 integration test",
+		)
+	}
+
 	// 建立 db Pool
+	ctx := context.Background()
+
+	dbPool, err := pgxpool.New(
+		ctx,
+		databaseURL,
+	)
+
+	if err != nil {
+		t.Fatalf(
+			"建立 test db pool 失敗: %v",
+			err,
+		)
+	}
+
+	defer dbPool.Close()
+
 	// 清空資料
+	_, err = dbPool.Exec(
+		ctx,
+		"TRUNCATE TABLE tasks RESTART IDENTITY",
+	)
+
+	if err != nil {
+		t.Fatalf(
+			"清理 test tasks 失敗: %v",
+			err,
+		)
+	}
+
 	// 放入測試資料
 
+	repositories := NewTaskRepository(dbPool)
+
+	for i := 0; i < 2; i++ {
+		_, err := repositories.Create(
+			ctx,
+			fmt.Sprintf("Test Task for GetAll: %v", i),
+		)
+
+		if err != nil {
+			t.Fatalf(
+				"放入 index 為 %d 的測試資料時發生錯誤: %v",
+				i,
+				err,
+			)
+		}
+	}
+
 	// Act
+	tasks, err := repositories.GetAll(ctx)
 
 	// Assert
 
 	// 檢查是否有錯誤
+
+	if err != nil {
+		t.Fatalf(
+			"GetAll() 執行失敗: %v",
+			err,
+		)
+	}
 	// 檢查資料筆數
+
+	if len(tasks) != 2 {
+		t.Fatalf(
+			"預期取得資料筆數: %d, 實際取得資料筆數: %d",
+			2,
+			len(tasks),
+		)
+	}
+
 	// 核對資料
+
+	for index, task := range tasks {
+		if task.ID != index+1 {
+			t.Errorf(
+				"預期 task id 為: %d , 實際為 %d",
+				index+1,
+				task.ID,
+			)
+
+		}
+
+		if task.Title != fmt.Sprintf("Test Task for GetAll: %v", index) {
+			t.Errorf(
+				"預期 task title 為: %s , 實際為 %s",
+				fmt.Sprintf("Test Task for GetAll: %v", index),
+				task.Title,
+			)
+		}
+
+		if task.Completed != false {
+			t.Errorf(
+				"預期 task completed 為: %t , 實際為 %t",
+				false,
+				task.Completed,
+			)
+		}
+
+	}
 
 }
 
