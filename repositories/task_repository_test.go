@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"example.com/hello-service/models"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -134,6 +135,66 @@ func TestTaskRepositoryGetAll(t *testing.T) {
 			)
 		}
 
+	}
+
+}
+
+// Delete
+func TestTaskRepositoryDelete(t *testing.T) {
+	// Arrange
+	ctx, dbPool, taskRepo := setupTestRepository(t)
+
+	var createdTask models.Task
+	err := dbPool.QueryRow(
+		ctx,
+		`
+		INSERT INTO tasks (title, completed)
+		VALUES ($1, $2)
+		RETURNING id, title, completed
+		`,
+		"task for deleted",
+		false,
+	).Scan(
+		&createdTask.ID,
+		&createdTask.Title,
+		&createdTask.Completed,
+	)
+
+	if err != nil {
+		t.Errorf("新增資料時發生錯誤: %v", err)
+	}
+
+	// Act
+	err = taskRepo.Delete(ctx, createdTask.ID)
+
+	// Asserts
+	if err != nil {
+		t.Fatalf(
+			"刪除資料時失敗: %v", err,
+		)
+	}
+
+	var dbTaskID int
+
+	// 進入 db 確認已經正確刪除
+	err = dbPool.QueryRow(
+		ctx,
+		`
+		SELECT id FROM tasks WHERE id = $1
+		`,
+		createdTask.ID,
+	).Scan(&dbTaskID)
+
+	if err == nil {
+		t.Fatal("搜尋時應該出現錯誤: ", err)
+	}
+
+	if !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatalf(
+			"預期錯誤: %v , 實際錯誤: %v",
+			pgx.ErrNoRows,
+			err,
+		)
 	}
 
 }
