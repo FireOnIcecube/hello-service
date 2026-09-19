@@ -39,7 +39,7 @@ func setupTestRepository(t *testing.T) (context.Context,
 	}
 
 	t.Cleanup(func() {
-		defer dbPool.Close()
+		dbPool.Close()
 	})
 
 	// 清空資料
@@ -62,56 +62,12 @@ func setupTestRepository(t *testing.T) (context.Context,
 
 // List
 func TestTaskRepositoryGetAll(t *testing.T) {
-	// 目標: 測試 List 功能是否正常運作
 
 	// Arrange
-	// 連接資料庫
-	databaseURL, ok := os.LookupEnv(
-		"TEST_DATABASE_URL",
-	)
-
-	if !ok || databaseURL == "" {
-		t.Skip(
-			"TEST_DATABASE_URL 未設定，跳過 integration test",
-		)
-	}
-
-	// 建立 db Pool
-	ctx := context.Background()
-
-	dbPool, err := pgxpool.New(
-		ctx,
-		databaseURL,
-	)
-
-	if err != nil {
-		t.Fatalf(
-			"建立 test db pool 失敗: %v",
-			err,
-		)
-	}
-
-	defer dbPool.Close()
-
-	// 清空資料
-	_, err = dbPool.Exec(
-		ctx,
-		"TRUNCATE TABLE tasks RESTART IDENTITY",
-	)
-
-	if err != nil {
-		t.Fatalf(
-			"清理 test tasks 失敗: %v",
-			err,
-		)
-	}
-
-	// 放入測試資料
-
-	repositories := NewTaskRepository(dbPool)
+	ctx, _, taskRepo := setupTestRepository(t)
 
 	for i := 0; i < 2; i++ {
-		_, err := repositories.Create(
+		_, err := taskRepo.Create(
 			ctx,
 			fmt.Sprintf("Test Task for GetAll: %v", i),
 		)
@@ -126,7 +82,7 @@ func TestTaskRepositoryGetAll(t *testing.T) {
 	}
 
 	// Act
-	tasks, err := repositories.GetAll(ctx)
+	tasks, err := taskRepo.GetAll(ctx)
 
 	// Assert
 
@@ -182,48 +138,10 @@ func TestTaskRepositoryGetAll(t *testing.T) {
 
 // Create
 func TestTaskRepositoryCreate(t *testing.T) {
-	databaseURL, ok := os.LookupEnv(
-		"TEST_DATABASE_URL",
-	)
 
-	if !ok || databaseURL == "" {
-		t.Skip(
-			"TEST_DATABASE_URL 未設定，跳過 integration test",
-		)
-	}
+	ctx, dbPool, taskRepo := setupTestRepository(t)
 
-	ctx := context.Background()
-
-	dbPool, err := pgxpool.New(
-		ctx,
-		databaseURL,
-	)
-
-	if err != nil {
-		t.Fatalf(
-			"建立 test db pool 失敗: %v",
-			err,
-		)
-	}
-
-	defer dbPool.Close()
-
-	// 清空資料
-	_, err = dbPool.Exec(
-		ctx,
-		"DELETE FROM tasks",
-	)
-
-	if err != nil {
-		t.Fatalf(
-			"清理 test tasks 失敗: %v",
-			err,
-		)
-	}
-
-	repositories := NewTaskRepository(dbPool)
-
-	task, err := repositories.Create(
+	task, err := taskRepo.Create(
 		ctx,
 		"Integration Test Task",
 	)
