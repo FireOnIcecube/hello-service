@@ -9,6 +9,57 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// setup function
+func setupTestRepository(t *testing.T) (context.Context,
+	*pgxpool.Pool,
+	*TaskRepository) {
+
+	t.Helper()
+
+	databaseURL, ok := os.LookupEnv("TEST_DATABASE_URL")
+
+	if !ok || databaseURL == "" {
+		t.Skip(
+			"TEST_DATABASE_URL 未設定，跳過 integration",
+		)
+	}
+
+	ctx := context.Background()
+
+	dbPool, err := pgxpool.New(
+		ctx,
+		databaseURL,
+	)
+
+	if err != nil {
+		t.Fatalf(
+			"建立 test db pool 失敗: %v",
+			err,
+		)
+	}
+
+	t.Cleanup(func() {
+		defer dbPool.Close()
+	})
+
+	// 清空資料
+	_, err = dbPool.Exec(ctx,
+		"TRUNCATE TABLE tasks RESTART IDENTITY",
+	)
+
+	if err != nil {
+		t.Fatalf(
+			"清理 test tasks 失敗: %v",
+			err,
+		)
+	}
+
+	taskRepo := NewTaskRepository(dbPool)
+
+	return ctx, dbPool, taskRepo
+
+}
+
 // List
 func TestTaskRepositoryGetAll(t *testing.T) {
 	// 目標: 測試 List 功能是否正常運作
