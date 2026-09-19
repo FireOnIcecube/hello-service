@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"testing"
@@ -137,26 +138,69 @@ func TestTaskRepositoryGetAll(t *testing.T) {
 
 }
 
+// Update NotFound
+func TestTaskRepositoryUpdateNotFound(t *testing.T) {
+	// Arrange
+	ctx, _, taskRepo := setupTestRepository(t)
+
+	// 用於測試，不存在的資料
+	notFoundTask := models.Task{
+		ID:        999,
+		Title:     "not found",
+		Completed: false,
+	}
+
+	// Act
+	// 嘗試去修改一個 id 不存在的資料
+	_, err := taskRepo.Update(ctx, notFoundTask.ID, notFoundTask.Title, notFoundTask.Completed)
+
+	if err == nil {
+		t.Fatal("預期發生錯誤")
+	}
+
+	// 如果沒獲取到 repo 自己包裝的 404 就是有問題
+	if !errors.Is(err, ErrTaskNotFound) {
+		t.Fatalf(
+			"預期發錯誤: %v, 實際發生錯誤: %v",
+			notFoundTask,
+			err,
+		)
+	}
+
+}
+
 // Update
 func TestTaskRepositoryUpdate(t *testing.T) {
 	// Arrange
 	ctx, dbPool, taskRepo := setupTestRepository(t)
 
 	// 建立初始資料
-	task, err := taskRepo.Create(ctx, "task for update test ")
 
-	// 預期更改後的資料
-	expectedTask := models.Task{
-		ID:        task.ID,
-		Title:     "After Update",
-		Completed: true,
-	}
+	var taskID int
+
+	err := dbPool.QueryRow(
+		ctx,
+		`
+		INSERT INTO tasks (title, completed)
+		VALUES ($1, $2)
+		RETURNING id
+		`,
+		"Before Update",
+		false,
+	).Scan(&taskID)
 
 	if err != nil {
 		t.Fatalf(
-			"建立初始資料失敗: %v",
+			"建立 Update 測試資料失敗: %v",
 			err,
 		)
+	}
+
+	// 預期更改後的資料
+	expectedTask := models.Task{
+		ID:        taskID,
+		Title:     "After Update",
+		Completed: true,
 	}
 
 	// Act
@@ -200,7 +244,7 @@ func TestTaskRepositoryUpdate(t *testing.T) {
 	err = dbPool.QueryRow(
 		ctx,
 		`SELECT id, title , completed FROM tasks WHERE id = $1`,
-		task.ID,
+		taskID,
 	).Scan(
 		&dbTask.ID,
 		&dbTask.Title,
