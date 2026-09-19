@@ -6,6 +6,7 @@ import (
 	"os"
 	"testing"
 
+	"example.com/hello-service/models"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -132,6 +133,106 @@ func TestTaskRepositoryGetAll(t *testing.T) {
 			)
 		}
 
+	}
+
+}
+
+// Update
+func TestTaskRepositoryUpdate(t *testing.T) {
+	// Arrange
+	ctx, dbPool, taskRepo := setupTestRepository(t)
+
+	// 建立初始資料
+	task, err := taskRepo.Create(ctx, "task for update test ")
+
+	// 預期更改後的資料
+	expectedTask := models.Task{
+		ID:        task.ID,
+		Title:     "After Update",
+		Completed: true,
+	}
+
+	if err != nil {
+		t.Fatalf(
+			"建立初始資料失敗: %v",
+			err,
+		)
+	}
+
+	// Act
+	updatedTask, err := taskRepo.Update(ctx, expectedTask.ID, expectedTask.Title, expectedTask.Completed)
+
+	// Assert
+
+	if err != nil {
+		t.Fatalf(
+			"修改資料時發生錯誤: %v",
+			err,
+		)
+	}
+
+	// 檢查 update 回傳的資料
+
+	if updatedTask.ID != expectedTask.ID {
+		t.Errorf("預期回傳 id 為: %d , 實際為: %d",
+			expectedTask.ID,
+			updatedTask.ID)
+	}
+
+	if updatedTask.Title != expectedTask.Title {
+		t.Errorf("預期回傳 title 為: %s , 實際為: %s",
+			expectedTask.Title,
+			updatedTask.Title,
+		)
+	}
+
+	if updatedTask.Completed != expectedTask.Completed {
+		t.Errorf("預期回傳 Completed 為: %t , 實際為: %t",
+			expectedTask.Completed,
+			updatedTask.Completed,
+		)
+	}
+
+	// 從 postgreSQL 獲取資料檢查
+
+	var dbTask models.Task
+
+	err = dbPool.QueryRow(
+		ctx,
+		`SELECT id, title , completed FROM tasks WHERE id = $1`,
+		task.ID,
+	).Scan(
+		&dbTask.ID,
+		&dbTask.Title,
+		&dbTask.Completed,
+	)
+
+	if err != nil {
+		t.Fatalf(
+			"調用資料庫失敗: %v",
+			err,
+		)
+	}
+
+	if dbTask.ID != expectedTask.ID {
+		t.Errorf("預期資料庫內 task id 為: %d , 實際為: %d",
+			expectedTask.ID,
+			dbTask.ID,
+		)
+	}
+
+	if dbTask.Title != expectedTask.Title {
+		t.Errorf("預期資料庫內 task title 為: %s , 實際為: %s",
+			expectedTask.Title,
+			dbTask.Title,
+		)
+	}
+
+	if dbTask.Completed != expectedTask.Completed {
+		t.Errorf("預期資料庫內 task Completed 為: %t , 實際為: %t",
+			expectedTask.Completed,
+			dbTask.Completed,
+		)
 	}
 
 }
