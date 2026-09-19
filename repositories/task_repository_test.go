@@ -139,6 +139,30 @@ func TestTaskRepositoryGetAll(t *testing.T) {
 
 }
 
+// Delete NotFound
+func TestTaskRepositoryDeleteNotFound(t *testing.T) {
+	// Arrange
+	ctx, _, taskRepo := setupTestRepository(t)
+
+	expectTaskID := 999
+
+	// Act
+	err := taskRepo.Delete(ctx, expectTaskID)
+
+	// Assert
+	if err == nil {
+		t.Fatal("應該回報錯誤")
+	}
+
+	if !errors.Is(err, ErrTaskNotFound) {
+		t.Fatalf(
+			"預期回報錯誤: %v , 實際收到錯誤: %v",
+			ErrTaskNotFound,
+			err,
+		)
+	}
+}
+
 // Delete
 func TestTaskRepositoryDelete(t *testing.T) {
 	// Arrange
