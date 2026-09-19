@@ -185,7 +185,10 @@ func TestTaskRepositoryDelete(t *testing.T) {
 	)
 
 	if err != nil {
-		t.Errorf("新增資料時發生錯誤: %v", err)
+		t.Fatalf(
+			"新增測試資料時發生錯誤: %v",
+			err,
+		)
 	}
 
 	// Act
@@ -210,7 +213,9 @@ func TestTaskRepositoryDelete(t *testing.T) {
 	).Scan(&dbTaskID)
 
 	if err == nil {
-		t.Fatal("搜尋時應該出現錯誤: ", err)
+		t.Fatal(
+			"預期刪除後查不到 task，但仍然查到資料",
+		)
 	}
 
 	if !errors.Is(err, pgx.ErrNoRows) {
