@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -50,14 +51,14 @@ func (f *fakeTaskRepository) Delete(ctx context.Context,
 func TestRouterGetDbTasks(t *testing.T) {
 	// Arrange
 	fakeRepo := &fakeTaskRepository{}
-	handlers := handlers.New(fakeRepo)
-	routers := newRouter(handlers)
+	handler := handlers.New(fakeRepo)
+	router := newRouter(handler)
 
-	request := httptest.NewRequest(http.MethodPatch, "/db-tasexitk", nil)
+	request := httptest.NewRequest(http.MethodPatch, "/db-task", nil)
 	recorder := httptest.NewRecorder()
 
 	// Act
-	routers.ServeHTTP(
+	router.ServeHTTP(
 		recorder,
 		request,
 	)
@@ -68,6 +69,37 @@ func TestRouterGetDbTasks(t *testing.T) {
 			http.StatusOK,
 			recorder.Code,
 			recorder.Body.String())
+	}
+
+	var tasks []models.Task
+
+	err := json.NewDecoder(
+		recorder.Body,
+	).Decode(&tasks)
+
+	if err != nil {
+		t.Fatalf(
+			"解析 response body 失敗: %v",
+			err,
+		)
+	}
+
+	if len(tasks) != 2 {
+		t.Errorf(
+			"預期資料筆數為: %d , 實際為: %d , response: %s",
+			2,
+			len(tasks),
+			recorder.Body.String(),
+		)
+	}
+
+	if tasks[0].Title != "title no.1" {
+		t.Errorf(
+			"預期 tasks[0]  title 為: %s , 實際為: %s , response: %s",
+			"title no.1",
+			tasks[0].Title,
+			recorder.Body.String(),
+		)
 	}
 
 }
