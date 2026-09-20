@@ -48,13 +48,69 @@ func (f *fakeTaskRepository) Delete(ctx context.Context,
 	return nil
 }
 
-func TestRouterGetDbTasks(t *testing.T) {
+// NotFound
+func TestRouterNotFound(t *testing.T) {
+	// Arrange
+	fakeRepo := &fakeTaskRepository{}
+	handler := handlers.New(fakeRepo)
+	router := newRouter(handler)
+
+	request := httptest.NewRequest(http.MethodGet, "/not-exist", nil)
+	recorder := httptest.NewRecorder()
+
+	// Act
+	router.ServeHTTP(
+		recorder,
+		request,
+	)
+
+	// Assert
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf(
+			"預期 status code 為: %d , 實際為: %d , \n response: %s ",
+			http.StatusNotFound,
+			recorder.Code,
+			recorder.Body.String(),
+		)
+	}
+}
+
+// NotAllowed
+func TestRouterMethodNotAllowed(t *testing.T) {
 	// Arrange
 	fakeRepo := &fakeTaskRepository{}
 	handler := handlers.New(fakeRepo)
 	router := newRouter(handler)
 
 	request := httptest.NewRequest(http.MethodPatch, "/db-task", nil)
+	recorder := httptest.NewRecorder()
+
+	// Act
+	router.ServeHTTP(
+		recorder,
+		request,
+	)
+
+	// Assert
+	if recorder.Code != http.StatusMethodNotAllowed {
+		t.Fatalf(
+			"預期 status code 為: %d , 實際為: %d , \n response: %s ",
+			http.StatusMethodNotAllowed,
+			recorder.Code,
+			recorder.Body.String(),
+		)
+	}
+
+}
+
+// Get
+func TestRouterGetDbTasks(t *testing.T) {
+	// Arrange
+	fakeRepo := &fakeTaskRepository{}
+	handler := handlers.New(fakeRepo)
+	router := newRouter(handler)
+
+	request := httptest.NewRequest(http.MethodGet, "/db-task", nil)
 	recorder := httptest.NewRecorder()
 
 	// Act
