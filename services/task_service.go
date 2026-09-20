@@ -10,15 +10,15 @@ import (
 
 var ErrTaskTitleRequired = errors.New("task title is required")
 
+type TaskService struct {
+	taskRepository TaskRepository
+}
+
 type TaskRepository interface {
 	Create(
 		ctx context.Context,
 		title string,
 	) (models.Task, error)
-}
-
-type TaskService struct {
-	taskRepository TaskRepository
 }
 
 func NewTaskService(
