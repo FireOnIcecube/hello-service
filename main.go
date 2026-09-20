@@ -215,56 +215,17 @@ func main() {
 		)
 	}
 
+	defer dbPool.Close()
+
 	taskRepository := &handlers.FakeTaskRepository{}
 
 	handler := handlers.New(taskRepository)
 
-	defer dbPool.Close()
-
-	http.HandleFunc(
-		"GET /db-task",
-		handler.GetDbTasks,
-	)
-
-	http.HandleFunc(
-		"POST /db-task",
-		handler.CreateDbTask,
-	)
-
-	http.HandleFunc(
-		"PUT /db-task/{id}",
-		handler.UpdateDbTask,
-	)
-
-	http.HandleFunc(
-		"DELETE /db-task/{id}",
-		handler.DeleteDbTask,
-	)
-
-	http.HandleFunc(
-		"GET /tasks",
-		getTasksHandler,
-	)
-
-	http.HandleFunc(
-		"POST /tasks",
-		createTaskHandler,
-	)
-
-	http.HandleFunc(
-		"PUT /tasks/{id}",
-		updateTaskHandler,
-	)
-	http.HandleFunc(
-		"DELETE /tasks/{id}",
-		deleteTaskHandler,
-	)
-
-	var mux = http.DefaultServeMux
+	router := newRouter(handler)
 
 	log.Println("localhost:8080 上已啟動")
 
-	err = http.ListenAndServe(":8080", mux)
+	err = http.ListenAndServe(":8080", router)
 	if err != nil {
 		log.Printf(
 			"HTTP Server 發生錯誤: %v",
