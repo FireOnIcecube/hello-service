@@ -56,11 +56,19 @@ func TestTaskServiceCreateTask(t *testing.T) {
 		)
 	}
 
-	if task.Title != fakeRepo.createTitle {
+	if task.Title != "Learn Go" {
 		t.Errorf(
 			"預期創建 task title: %s , 實際 title: %s",
-			fakeRepo.createTitle,
+			"Learn Go",
 			task.Title,
+		)
+	}
+
+	if fakeRepo.createTitle != "Learn Go" {
+		t.Errorf(
+			"預期 Repository 收到 title %q，實際為 %q",
+			"Learn Go",
+			fakeRepo.createTitle,
 		)
 	}
 }
@@ -103,8 +111,11 @@ func TestTaskServiceCreateTaskEmptyTitle(t *testing.T) {
 // Create internal service error
 func TestTaskServiceCreateTaskRepositoryError(t *testing.T) {
 	// Arrange
+
+	repositoryErr := errors.New("database failed")
+
 	fakeRepo := fakeTaskRepository{
-		createErr: errors.New("database failed"),
+		createErr: repositoryErr,
 	}
 	service := NewTaskService(&fakeRepo)
 
@@ -116,6 +127,14 @@ func TestTaskServiceCreateTaskRepositoryError(t *testing.T) {
 	// Assert
 	if err == nil {
 		t.Fatal("預期回報錯誤")
+	}
+
+	if !errors.Is(err, repositoryErr) {
+		t.Fatalf(
+			"預期錯誤 %v，實際為 %v",
+			repositoryErr,
+			err,
+		)
 	}
 
 	if !fakeRepo.createCalled {

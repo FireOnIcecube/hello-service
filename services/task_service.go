@@ -40,6 +40,6 @@ func (s *TaskService) CreateTask(
 		return models.Task{}, ErrTaskTitleRequired
 	}
 
-	return s.taskRepository.Create(ctx, title)
+	return s.taskRepository.Create(ctx, normalizedTitle)
 
 }
