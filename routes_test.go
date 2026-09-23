@@ -11,6 +11,21 @@ import (
 	"example.com/hello-service/models"
 )
 
+type fakeTaskService struct{}
+
+func (f *fakeTaskService) CreateTask(
+	ctx context.Context,
+	title string,
+) (models.Task, error) {
+
+	return models.Task{
+		ID:        10,
+		Title:     title,
+		Completed: false,
+	}, nil
+
+}
+
 type fakeTaskRepository struct {
 }
 
@@ -52,7 +67,9 @@ func (f *fakeTaskRepository) Delete(ctx context.Context,
 func TestRouterNotFound(t *testing.T) {
 	// Arrange
 	fakeRepo := &fakeTaskRepository{}
-	handler := handlers.New(fakeRepo)
+	fakeService := &fakeTaskService{}
+
+	handler := handlers.New(fakeRepo, fakeService)
 	router := newRouter(handler)
 
 	request := httptest.NewRequest(http.MethodGet, "/not-exist", nil)
@@ -79,7 +96,9 @@ func TestRouterNotFound(t *testing.T) {
 func TestRouterMethodNotAllowed(t *testing.T) {
 	// Arrange
 	fakeRepo := &fakeTaskRepository{}
-	handler := handlers.New(fakeRepo)
+	fakeService := &fakeTaskService{}
+
+	handler := handlers.New(fakeRepo, fakeService)
 	router := newRouter(handler)
 
 	request := httptest.NewRequest(http.MethodPatch, "/db-task", nil)
@@ -107,7 +126,9 @@ func TestRouterMethodNotAllowed(t *testing.T) {
 func TestRouterGetDbTasks(t *testing.T) {
 	// Arrange
 	fakeRepo := &fakeTaskRepository{}
-	handler := handlers.New(fakeRepo)
+	fakeService := &fakeTaskService{}
+
+	handler := handlers.New(fakeRepo, fakeService)
 	router := newRouter(handler)
 
 	request := httptest.NewRequest(http.MethodGet, "/db-task", nil)

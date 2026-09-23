@@ -29,14 +29,24 @@ type TaskRepository interface {
 	) error
 }
 
+type TaskService interface {
+	CreateTask(
+		ctx context.Context,
+		title string,
+	) (models.Task, error)
+}
+
 type Handler struct {
 	taskRepository TaskRepository
+	taskService    TaskService
 }
 
 func New(
 	taskRepository TaskRepository,
+	taskService TaskService,
 ) *Handler {
 	return &Handler{
 		taskRepository: taskRepository,
+		taskService:    taskService,
 	}
 }

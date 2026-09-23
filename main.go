@@ -10,6 +10,8 @@ import (
 
 	"example.com/hello-service/handlers"
 	"example.com/hello-service/models"
+	"example.com/hello-service/repositories"
+	"example.com/hello-service/services"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -217,9 +219,10 @@ func main() {
 
 	defer dbPool.Close()
 
-	taskRepository := &handlers.FakeTaskRepository{}
+	taskRepository := repositories.NewTaskRepository(dbPool)
+	taskService := services.NewTaskService(taskRepository)
 
-	handler := handlers.New(taskRepository)
+	handler := handlers.New(taskRepository, taskService)
 
 	router := newRouter(handler)
 

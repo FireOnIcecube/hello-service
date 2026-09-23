@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"example.com/hello-service/repositories"
+	"example.com/hello-service/services"
 )
 
 func (h *Handler) GetDbTasks(
@@ -67,7 +68,18 @@ func (h *Handler) CreateDbTask(
 		return
 	}
 
-	task, err := h.taskRepository.Create(r.Context(), input.Title)
+	task, err := h.taskService.CreateTask(r.Context(), input.Title)
+
+	if errors.Is(
+		err, services.ErrTaskTitleRequired,
+	) {
+		http.Error(
+			w,
+			"task title is required",
+			http.StatusBadRequest,
+		)
+		return
+	}
 
 	if err != nil {
 
