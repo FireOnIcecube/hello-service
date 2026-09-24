@@ -9,9 +9,20 @@ import (
 )
 
 type fakeTaskRepository struct {
+	// Create
 	createCalled bool
 	createTitle  string
 	createErr    error
+
+	// GetAll
+	getAllCalled bool
+	getAllTasks  []models.Task
+	getAllErr    error
+}
+
+func (f *fakeTaskRepository) GetAll(ctx context.Context) {
+	f.getAllCalled = true
+
 }
 
 func (f *fakeTaskRepository) Create(ctx context.Context,
