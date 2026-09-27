@@ -15,6 +15,10 @@ type TaskService struct {
 }
 
 type TaskRepository interface {
+	GetAll(
+		ctx context.Context,
+	) ([]models.Task, error)
+
 	Create(
 		ctx context.Context,
 		title string,
@@ -27,6 +31,13 @@ func NewTaskService(
 	return &TaskService{
 		taskRepository: taskRepository,
 	}
+}
+
+func (s *TaskService) GetTasks(
+	ctx context.Context,
+) ([]models.Task, error) {
+
+	return s.taskRepository.GetAll(ctx)
 }
 
 func (s *TaskService) CreateTask(
