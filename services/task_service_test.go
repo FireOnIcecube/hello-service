@@ -8,6 +8,8 @@ import (
 	"example.com/hello-service/models"
 )
 
+var repositoryErr = errors.New("get tasks failed")
+
 type fakeTaskRepository struct {
 	// Create
 	createCalled bool
@@ -24,7 +26,7 @@ func (f *fakeTaskRepository) GetAll(ctx context.Context) ([]models.Task, error) 
 	f.getAllCalled = true
 
 	if f.getAllErr != nil {
-		return []models.Task{}, f.createErr
+		return []models.Task{}, f.getAllErr
 	}
 
 	return f.getAllTasks, nil
@@ -50,7 +52,7 @@ func (f *fakeTaskRepository) Create(ctx context.Context,
 func TestTaskServiceGetTasksRepositoryError(t *testing.T) {
 	// Arrange
 	fakeRepo := fakeTaskRepository{
-		getAllErr: ErrRepository,
+		getAllErr: repositoryErr,
 	}
 	service := NewTaskService(&fakeRepo)
 
@@ -64,10 +66,10 @@ func TestTaskServiceGetTasksRepositoryError(t *testing.T) {
 		t.Fatal("預期回報錯誤")
 	}
 
-	if !errors.Is(err, ErrRepository) {
+	if !errors.Is(err, repositoryErr) {
 		t.Fatalf(
 			"預期回報錯誤為: %v , 實際回報錯誤: %v",
-			ErrRepository,
+			repositoryErr,
 			err,
 		)
 	}
@@ -116,13 +118,6 @@ func TestTaskServiceGetTasks(t *testing.T) {
 			"預期 getAllCalled 為: %t , 實際為: %t",
 			true,
 			fakeRepo.getAllCalled,
-		)
-	}
-
-	if fakeRepo.getAllErr != nil {
-		t.Fatalf(
-			"接收到錯誤 err: %v",
-			err,
 		)
 	}
 
