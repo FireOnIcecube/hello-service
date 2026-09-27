@@ -17,9 +17,16 @@ import (
 )
 
 type fakeTaskService struct {
+
+	// Create
 	createTaskCalled bool
 	createTaskTitle  string
 	createTaskErr    error
+
+	//  GetTasks
+	getTasksCalled bool
+	getTasks       []models.Task
+	getTasksErr    error
 }
 
 func (f *fakeTaskService) CreateTask(
@@ -38,6 +45,20 @@ func (f *fakeTaskService) CreateTask(
 		Title:     title,
 		Completed: false,
 	}, nil
+
+}
+
+func (f *fakeTaskService) GetTasks(
+	ctx context.Context,
+) ([]models.Task, error) {
+
+	f.getTasksCalled = true
+
+	if f.getTasksErr != nil {
+		return []models.Task{}, f.getTasksErr
+	}
+
+	return f.getTasks, nil
 
 }
 

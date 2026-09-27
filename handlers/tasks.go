@@ -16,7 +16,7 @@ func (h *Handler) GetDbTasks(
 	r *http.Request,
 ) {
 
-	tasks, err := h.taskRepository.GetAll(r.Context())
+	tasks, err := h.taskService.GetTasks(r.Context())
 
 	if err != nil {
 

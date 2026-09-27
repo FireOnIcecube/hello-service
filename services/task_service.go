@@ -9,6 +9,7 @@ import (
 )
 
 var ErrTaskTitleRequired = errors.New("task title is required")
+var ErrRepository = errors.New("tasks failed")
 
 type TaskService struct {
 	taskRepository TaskRepository
