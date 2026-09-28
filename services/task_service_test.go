@@ -305,24 +305,28 @@ func TestTaskServiceCreateTaskRepositoryError(t *testing.T) {
 func TestTaskServiceUpdateTask(t *testing.T) {
 
 	// update 資料
-	temTask := models.Task{
+	inputTask := models.Task{
+		ID:        1,
+		Title:     " 買牛奶 ",
+		Completed: true,
+	}
+
+	expectedResult := models.Task{
 		ID:        1,
 		Title:     "買牛奶",
-		Completed: false,
+		Completed: true,
 	}
 
 	// Arrange
 	fakeRepo := fakeTaskRepository{
-		updateID:        temTask.ID,
-		updateTitle:     temTask.Title,
-		updateCompleted: temTask.Completed,
+		updateResult: expectedResult,
 	}
 	service := NewTaskService(&fakeRepo)
 
 	ctx := context.Background()
 
 	// Act
-	_, err := service.UpdateTask(ctx, temTask.ID, temTask.Title, temTask.Completed)
+	task, err := service.UpdateTask(ctx, inputTask.ID, inputTask.Title, inputTask.Completed)
 
 	// Assert
 	if err != nil {
@@ -334,24 +338,33 @@ func TestTaskServiceUpdateTask(t *testing.T) {
 	}
 
 	// 驗證資料
-	if fakeRepo.updateID != temTask.ID {
+	if fakeRepo.updateID != 1 {
 		t.Errorf("預期 ID 為: %d, 實際為: %d",
-			temTask.ID,
+			1,
 			fakeRepo.updateID,
 		)
 	}
 
-	if fakeRepo.updateTitle != temTask.Title {
+	if fakeRepo.updateTitle != "買牛奶" {
 		t.Errorf("預期 Title 為: %v, 實際為: %v",
-			temTask.Title,
+			"買牛奶",
 			fakeRepo.updateTitle,
 		)
 	}
 
-	if fakeRepo.updateCompleted != temTask.Completed {
+	if fakeRepo.updateCompleted != true {
 		t.Errorf("預期 Completed 為: %t, 實際為: %t",
-			temTask.Completed,
+			true,
 			fakeRepo.updateCompleted,
+		)
+	}
+
+	// Repository → Service
+
+	if task != expectedResult {
+		t.Errorf("預期 回傳 result 為: %+v, 實際為: %+v",
+			expectedResult,
+			task,
 		)
 	}
 
