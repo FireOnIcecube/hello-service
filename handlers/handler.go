@@ -37,6 +37,11 @@ type TaskService interface {
 
 	GetTasks(ctx context.Context,
 	) ([]models.Task, error)
+
+	UpdateTask(ctx context.Context,
+		id int,
+		title string,
+		completed bool) (models.Task, error)
 }
 
 type Handler struct {

@@ -7,8 +7,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"example.com/hello-service/repositories"
-	"example.com/hello-service/services"
+	"example.com/hello-service/domain"
 )
 
 func (h *Handler) GetDbTasks(
@@ -71,7 +70,7 @@ func (h *Handler) CreateDbTask(
 	task, err := h.taskService.CreateTask(r.Context(), input.Title)
 
 	if errors.Is(
-		err, services.ErrTaskTitleRequired,
+		err, domain.ErrTaskTitleRequired,
 	) {
 		http.Error(
 			w,
@@ -148,11 +147,11 @@ func (h *Handler) UpdateDbTask(
 		return
 	}
 
-	task, err := h.taskRepository.Update(r.Context(), id, input.Title, input.Completed)
+	task, err := h.taskService.UpdateTask(r.Context(), id, input.Title, input.Completed)
 
 	if err != nil {
 
-		if errors.Is(err, repositories.ErrTaskNotFound) {
+		if errors.Is(err, domain.ErrTaskNotFound) {
 			http.Error(
 				w,
 				"修改資料不存在",
@@ -209,7 +208,7 @@ func (h *Handler) DeleteDbTask(
 	err = h.taskRepository.Delete(r.Context(), id)
 
 	if err != nil {
-		if errors.Is(err, repositories.ErrTaskNotFound) {
+		if errors.Is(err, domain.ErrTaskNotFound) {
 			http.Error(
 				w,
 				"刪除資料不存在",

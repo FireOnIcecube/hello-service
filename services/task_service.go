@@ -2,13 +2,11 @@ package services
 
 import (
 	"context"
-	"errors"
 	"strings"
 
+	"example.com/hello-service/domain"
 	"example.com/hello-service/models"
 )
-
-var ErrTaskTitleRequired = errors.New("task title is required")
 
 type TaskService struct {
 	taskRepository TaskRepository
@@ -22,6 +20,13 @@ type TaskRepository interface {
 	Create(
 		ctx context.Context,
 		title string,
+	) (models.Task, error)
+
+	Update(
+		ctx context.Context,
+		id int,
+		title string,
+		completed bool,
 	) (models.Task, error)
 }
 
@@ -48,9 +53,30 @@ func (s *TaskService) CreateTask(
 	normalizedTitle := strings.TrimSpace(title)
 
 	if normalizedTitle == "" {
-		return models.Task{}, ErrTaskTitleRequired
+		return models.Task{}, domain.ErrTaskTitleRequired
 	}
 
 	return s.taskRepository.Create(ctx, normalizedTitle)
+
+}
+
+func (s *TaskService) UpdateTask(
+	ctx context.Context,
+	id int,
+	title string,
+	completed bool,
+) (models.Task, error) {
+
+	normalizedTitle := strings.TrimSpace(title)
+
+	if normalizedTitle == "" {
+		return models.Task{}, domain.ErrTaskTitleRequired
+	}
+
+	if id <= 0 {
+		return models.Task{}, domain.ErrTaskPositiveInteger
+	}
+
+	return s.taskRepository.Update(ctx, id, normalizedTitle, completed)
 
 }

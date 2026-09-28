@@ -11,9 +11,8 @@ import (
 	"strings"
 	"testing"
 
+	"example.com/hello-service/domain"
 	"example.com/hello-service/models"
-	"example.com/hello-service/repositories"
-	"example.com/hello-service/services"
 )
 
 type fakeTaskService struct {
@@ -27,6 +26,33 @@ type fakeTaskService struct {
 	getTasksCalled bool
 	getTasks       []models.Task
 	getTasksErr    error
+
+	// Update
+	updateTaskCalled bool
+	updateID         int
+	updateTitle      string
+	updateCompleted  bool
+	updateTaskErr    error
+}
+
+func (f *fakeTaskService) UpdateTask(
+	ctx context.Context,
+	id int,
+	title string,
+	completed bool,
+) (models.Task, error) {
+	f.updateTaskCalled = true
+
+	if f.updateTaskErr != nil {
+		return models.Task{}, f.updateTaskErr
+	}
+
+	return models.Task{
+		ID:        f.updateID,
+		Title:     f.updateTitle,
+		Completed: f.updateCompleted,
+	}, nil
+
 }
 
 func (f *fakeTaskService) CreateTask(
@@ -196,7 +222,7 @@ func TestDeleteDbTaskError(t *testing.T) {
 func TestDeleteDbTaskNotFound(t *testing.T) {
 	// Arrange
 	fakeRepository := fakeTaskRepository{
-		deleteErr: repositories.ErrTaskNotFound,
+		deleteErr: domain.ErrTaskNotFound,
 	}
 	fakeService := fakeTaskService{}
 
@@ -276,7 +302,7 @@ func TestDeleteDbTask(t *testing.T) {
 		}, {
 			name:       "task not found",
 			pathID:     "10",
-			deleteErr:  repositories.ErrTaskNotFound,
+			deleteErr:  domain.ErrTaskNotFound,
 			wantStatus: http.StatusNotFound,
 			wantCalled: true,
 		}, {
@@ -496,7 +522,7 @@ func TestUpdateDbTaskNotFound(t *testing.T) {
 
 	// Arrange
 	fakeRepository := fakeTaskRepository{
-		updateErr: repositories.ErrTaskNotFound,
+		updateErr: domain.ErrTaskNotFound,
 	}
 	fakeService := fakeTaskService{}
 
@@ -719,7 +745,7 @@ func TestCreateTitleRequried(t *testing.T) {
 
 	fakeRepository := fakeTaskRepository{}
 	fakeService := fakeTaskService{
-		createTaskErr: services.ErrTaskTitleRequired,
+		createTaskErr: domain.ErrTaskTitleRequired,
 	}
 
 	handler := New(&fakeRepository, &fakeService)

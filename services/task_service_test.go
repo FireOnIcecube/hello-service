@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"example.com/hello-service/domain"
 	"example.com/hello-service/models"
 )
 
@@ -20,6 +21,15 @@ type fakeTaskRepository struct {
 	getAllCalled bool
 	getAllTasks  []models.Task
 	getAllErr    error
+
+	// Update
+	updateCalled    bool
+	updateID        int
+	updateTitle     string
+	updateCompleted bool
+
+	updateResult models.Task
+	updateErr    error
 }
 
 func (f *fakeTaskRepository) GetAll(ctx context.Context) ([]models.Task, error) {
@@ -46,6 +56,23 @@ func (f *fakeTaskRepository) Create(ctx context.Context,
 		Title:     title,
 		Completed: false,
 	}, nil
+}
+
+func (f *fakeTaskRepository) Update(ctx context.Context,
+	id int,
+	title string,
+	completed bool) (models.Task, error) {
+
+	f.updateCalled = true
+	f.updateID = id
+	f.updateTitle = title
+	f.updateCompleted = completed
+
+	if f.updateErr != nil {
+		return models.Task{}, f.updateErr
+	}
+
+	return f.updateResult, nil
 }
 
 // GetAll Repository 錯誤
@@ -223,10 +250,10 @@ func TestTaskServiceCreateTaskEmptyTitle(t *testing.T) {
 		)
 	}
 
-	if !errors.Is(err, ErrTaskTitleRequired) {
+	if !errors.Is(err, domain.ErrTaskTitleRequired) {
 		t.Fatalf(
 			"預期回報錯誤為: %v , 實際回報錯誤: %v",
-			ErrTaskTitleRequired,
+			domain.ErrTaskTitleRequired,
 			err,
 		)
 	}
@@ -272,4 +299,132 @@ func TestTaskServiceCreateTaskRepositoryError(t *testing.T) {
 		t.Fatal("Create 應該被執行")
 	}
 
+}
+
+// Update 正常流程
+func TestTaskServiceUpdateTask(t *testing.T) {
+
+	// update 資料
+	temTask := models.Task{
+		ID:        1,
+		Title:     "買牛奶",
+		Completed: false,
+	}
+
+	// Arrange
+	fakeRepo := fakeTaskRepository{
+		updateID:        temTask.ID,
+		updateTitle:     temTask.Title,
+		updateCompleted: temTask.Completed,
+	}
+	service := NewTaskService(&fakeRepo)
+
+	ctx := context.Background()
+
+	// Act
+	_, err := service.UpdateTask(ctx, temTask.ID, temTask.Title, temTask.Completed)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("接收到錯誤，操作失敗: %v", err)
+	}
+
+	if !fakeRepo.updateCalled {
+		t.Fatal("Repository.Update 應該被呼叫")
+	}
+
+	// 驗證資料
+	if fakeRepo.updateID != temTask.ID {
+		t.Errorf("預期 ID 為: %d, 實際為: %d",
+			temTask.ID,
+			fakeRepo.updateID,
+		)
+	}
+
+	if fakeRepo.updateTitle != temTask.Title {
+		t.Errorf("預期 Title 為: %v, 實際為: %v",
+			temTask.Title,
+			fakeRepo.updateTitle,
+		)
+	}
+
+	if fakeRepo.updateCompleted != temTask.Completed {
+		t.Errorf("預期 Completed 為: %t, 實際為: %t",
+			temTask.Completed,
+			fakeRepo.updateCompleted,
+		)
+	}
+
+}
+
+// Update NotFound
+func TestTaskServiceUpdateTaskNotFound(t *testing.T) {
+
+	// 測試資料
+	temTask := models.Task{
+		ID:        999,
+		Title:     "NotFound",
+		Completed: false,
+	}
+
+	// Arrange
+	fakeRepo := fakeTaskRepository{updateErr: domain.ErrTaskNotFound}
+	service := NewTaskService(&fakeRepo)
+
+	ctx := context.Background()
+
+	// Act
+	_, err := service.UpdateTask(ctx, temTask.ID, temTask.Title, temTask.Completed)
+
+	// Assert
+	if err == nil {
+		t.Fatal("預期應該收到錯誤")
+	}
+
+	if !errors.Is(err, domain.ErrTaskNotFound) {
+		t.Fatalf("預期應該收到錯誤為: %v , 實際收到: %v",
+			domain.ErrTaskNotFound,
+			err,
+		)
+	}
+
+	if !fakeRepo.updateCalled {
+		t.Fatal("Update 應該被執行")
+	}
+}
+
+// Update positive integer error
+func TestTaskServiceUpdateTaskPositiveIntegerErr(t *testing.T) {
+
+	// 測試資料
+	temTask := models.Task{
+		ID:        -1,
+		Title:     "integer error",
+		Completed: false,
+	}
+
+	// Arrange
+	fakeRepo := fakeTaskRepository{updateErr: domain.ErrTaskPositiveInteger}
+	service := NewTaskService(&fakeRepo)
+
+	ctx := context.Background()
+
+	// Act
+	_, err := service.UpdateTask(ctx, temTask.ID, temTask.Title, temTask.Completed)
+
+	// Assert
+	if err == nil {
+		t.Fatal("預期應該收到錯誤")
+	}
+
+	if !errors.Is(err, domain.ErrTaskPositiveInteger) {
+		t.Fatalf("預期應該收到錯誤為: %v , 實際收到: %v",
+			domain.ErrTaskPositiveInteger,
+			err,
+		)
+	}
+
+	if fakeRepo.updateCalled {
+		t.Fatal("Update 不應該被執行")
+	}
 }
