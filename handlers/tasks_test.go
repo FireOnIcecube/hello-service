@@ -32,6 +32,8 @@ type fakeTaskService struct {
 	updateID         int
 	updateTitle      string
 	updateCompleted  bool
+
+	updateTaskResult models.Task
 	updateTaskErr    error
 }
 
@@ -42,16 +44,15 @@ func (f *fakeTaskService) UpdateTask(
 	completed bool,
 ) (models.Task, error) {
 	f.updateTaskCalled = true
+	f.updateID = id
+	f.updateTitle = title
+	f.updateCompleted = completed
 
 	if f.updateTaskErr != nil {
 		return models.Task{}, f.updateTaskErr
 	}
 
-	return models.Task{
-		ID:        f.updateID,
-		Title:     f.updateTitle,
-		Completed: f.updateCompleted,
-	}, nil
+	return f.updateTaskResult, nil
 
 }
 
@@ -404,6 +405,143 @@ func TestDeleteDbTask(t *testing.T) {
 // 	}
 // }
 
+func TestUpdateDbTaskNotFound(t *testing.T) {
+	// Arrange
+	spyTask := models.Task{
+		ID:        10,
+		Title:     "not found",
+		Completed: false,
+	}
+
+	fakeRepo := fakeTaskRepository{}
+	fakeService := fakeTaskService{
+		updateTaskErr: domain.ErrTaskNotFound,
+	}
+
+	handler := New(&fakeRepo, &fakeService)
+
+	request := httptest.NewRequest(http.MethodPut,
+		fmt.Sprintf(`/db-task/%d`, spyTask.ID),
+		strings.NewReader(
+			fmt.Sprintf(`{"title": %q , "completed": %t}`,
+				spyTask.Title, spyTask.Completed),
+		),
+	)
+	request.SetPathValue(
+		"id",
+		strconv.Itoa(spyTask.ID),
+	)
+
+	recorder := httptest.NewRecorder()
+
+	// Act
+	handler.UpdateDbTask(recorder, request)
+
+	// Assert
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("預期 status code 為 %d ， 實際得到 %d ， response: %s",
+			http.StatusNotFound,
+			recorder.Code,
+			recorder.Body.String())
+	}
+
+	if fakeService.updateTaskCalled == false {
+		t.Fatal("Service 應該被呼叫")
+	}
+}
+
+func TestUpdateDbTaskPositiveInteger(t *testing.T) {
+
+	// Arrange
+	spyTask := models.Task{
+		ID:        10,
+		Title:     "positive",
+		Completed: false,
+	}
+
+	fakeRepo := fakeTaskRepository{}
+	fakeService := fakeTaskService{
+		updateTaskErr: domain.ErrTaskPositiveInteger,
+	}
+
+	handler := New(&fakeRepo, &fakeService)
+
+	request := httptest.NewRequest(
+		http.MethodPut,
+		fmt.Sprintf("/db-task/%d", spyTask.ID),
+		strings.NewReader(
+			fmt.Sprintf(`{"title": %q , "completed": %t}`,
+				spyTask.Title,
+				spyTask.Completed,
+			),
+		),
+	)
+	request.SetPathValue("id", strconv.Itoa(spyTask.ID))
+
+	recorder := httptest.NewRecorder()
+
+	// Act
+	handler.UpdateDbTask(recorder, request)
+
+	// Assert
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("預期 status code 為 %d ， 實際得到 %d ， response: %s",
+			http.StatusBadRequest,
+			recorder.Code,
+			recorder.Body.String())
+	}
+
+	if fakeService.updateTaskCalled == false {
+		t.Fatal("Service 應該被呼叫")
+	}
+}
+
+func TestUpdateDbTaskTitleRequired(t *testing.T) {
+
+	// Arrange
+	spyTask := models.Task{
+		ID:        10,
+		Title:     "anything",
+		Completed: false,
+	}
+
+	fakeRepo := fakeTaskRepository{}
+	fakeService := fakeTaskService{
+		updateTaskErr: domain.ErrTaskTitleRequired,
+	}
+
+	handler := New(&fakeRepo, &fakeService)
+
+	request := httptest.NewRequest(
+		http.MethodPut,
+		fmt.Sprintf("/db-task/%d", spyTask.ID),
+		strings.NewReader(
+			fmt.Sprintf(`{"title": %q , "completed": %t }`,
+				spyTask.Title, spyTask.Completed),
+		),
+	)
+	request.SetPathValue("id",
+		strconv.Itoa(spyTask.ID))
+
+	recorder := httptest.NewRecorder()
+
+	// Act
+	handler.UpdateDbTask(recorder, request)
+
+	// Assert
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("預期 status code 為 %d ， 實際得到 %d ， response: %s",
+			http.StatusBadRequest,
+			recorder.Code,
+			recorder.Body.String())
+	}
+
+	if fakeService.updateTaskCalled == false {
+		t.Fatal("Service 應該被呼叫")
+	}
+
+}
+
 func TestUpdateDbTaskInvalidJson(t *testing.T) {
 	// Arrange
 	fakeRepository := fakeTaskRepository{}
@@ -413,7 +551,7 @@ func TestUpdateDbTaskInvalidJson(t *testing.T) {
 
 	request := httptest.NewRequest(http.MethodPut,
 		"/db-test/10",
-		strings.NewReader(`{"title":"invalid}`),
+		strings.NewReader(`{"title":"invaljson}`),
 	)
 
 	request.SetPathValue("id", "10")
@@ -433,8 +571,8 @@ func TestUpdateDbTaskInvalidJson(t *testing.T) {
 
 	}
 
-	if fakeRepository.updateCalled {
-		t.Fatal("JSON 無效時，不應呼叫 Repository.Update")
+	if fakeService.updateTaskCalled {
+		t.Fatal("不應呼叫 Service")
 	}
 
 }
@@ -476,9 +614,9 @@ func TestUpdateDbTaskInvalidId(t *testing.T) {
 		)
 	}
 
-	if fakeRepository.updateCalled {
+	if fakeService.updateTaskCalled == true {
 		t.Fatal(
-			"請求 ID 格式錯誤時，不應呼叫 Repository.Update",
+			"請求 ID 格式錯誤時，不應呼叫 Service",
 		)
 	}
 }
@@ -486,10 +624,12 @@ func TestUpdateDbTaskInvalidId(t *testing.T) {
 func TestUpdateDbTaskError(t *testing.T) {
 
 	// Arrange
-	fakeRepository := fakeTaskRepository{
-		updateErr: errors.New("internal error"),
+	fakeRepository := fakeTaskRepository{}
+
+	serviceErr := errors.New("service failed")
+	fakeService := fakeTaskService{
+		updateTaskErr: serviceErr,
 	}
-	fakeService := fakeTaskService{}
 
 	handler := New(&fakeRepository, &fakeService)
 
@@ -512,73 +652,52 @@ func TestUpdateDbTaskError(t *testing.T) {
 		)
 	}
 
-	if !fakeRepository.updateCalled {
-		t.Fatal("應該呼叫 Repository.Update")
+	if !fakeService.updateTaskCalled {
+		t.Fatal("應該呼叫 Service")
 	}
 
 }
 
-func TestUpdateDbTaskNotFound(t *testing.T) {
-
-	// Arrange
-	fakeRepository := fakeTaskRepository{
-		updateErr: domain.ErrTaskNotFound,
-	}
-	fakeService := fakeTaskService{}
-
-	handler := New(&fakeRepository, &fakeService)
-
-	request := httptest.NewRequest(http.MethodPut, "/db-task/10",
-		strings.NewReader(
-			`{"title": "notFound"}`,
-		))
-
-	request.SetPathValue("id", "10")
-
-	recorder := httptest.NewRecorder()
-
-	// Act
-	handler.UpdateDbTask(recorder, request)
-
-	// Assert
-	if recorder.Code != http.StatusNotFound {
-		t.Fatalf(
-			"預期 status code 為 %d，實際得到 %d，response: %s",
-			http.StatusNotFound,
-			recorder.Code,
-			recorder.Body.String(),
-		)
-	}
-
-	if !fakeRepository.updateCalled {
-		t.Fatal("應該呼叫 Repository.Update")
-	}
-
-}
-
+// 正常 update 測試
 func TestUpdateDbTask(t *testing.T) {
+
+	// 測試資料
+	spyTask := models.Task{
+		ID:        10,
+		Title:     " test buy milk ",
+		Completed: true,
+	}
+
+	stubUpdateTaskResult := models.Task{
+		ID:        10,
+		Title:     "test buy milk",
+		Completed: true,
+	}
+
 	// Arrange
 	fakeRepository := fakeTaskRepository{}
-	fakeService := fakeTaskService{}
+	fakeService := fakeTaskService{
+		updateTaskResult: stubUpdateTaskResult,
+	}
 
 	handler := New(&fakeRepository, &fakeService)
 
-	var targetId = 10
-	var targetTitle = "test"
-	var targetCompleted = false
+	// var targetId = 10
+	// var targetTitle = "test"
+	// var targetCompleted = false
 
 	request := httptest.NewRequest(
 		http.MethodPut,
-		fmt.Sprintf("/db-task/%d", targetId),
+		fmt.Sprintf("/db-task/%d", spyTask.ID),
 		strings.NewReader(
 			fmt.Sprintf(`{"title": %q , "completed": %t }`,
-				targetTitle, targetCompleted),
+				spyTask.Title, spyTask.Completed),
 		),
 	)
 
 	request.SetPathValue(
 		"id",
-		strconv.Itoa(targetId),
+		strconv.Itoa(spyTask.ID),
 	)
 
 	recorder := httptest.NewRecorder()
@@ -588,6 +707,30 @@ func TestUpdateDbTask(t *testing.T) {
 
 	// Assert
 
+	// 確認 spy
+	if !fakeService.updateTaskCalled {
+		t.Fatal("Service.UpdateTask 應該被呼叫")
+	}
+	if fakeService.updateID != spyTask.ID {
+		t.Errorf("預期 service 接收 updateID: %d , 實際接收 updateID: %d",
+			spyTask.ID,
+			fakeService.updateID,
+		)
+	}
+	if fakeService.updateTitle != spyTask.Title {
+		t.Errorf("預期 service 接收 updateTitle: %s , 實際接收 updateTitle: %s",
+			spyTask.Title,
+			fakeService.updateTitle,
+		)
+	}
+	if fakeService.updateCompleted != spyTask.Completed {
+		t.Errorf("預期 service 接收 updateCompleted: %t , 實際接收 updateCompleted: %t",
+			spyTask.Completed,
+			fakeService.updateCompleted,
+		)
+	}
+
+	// 確認 stub
 	if recorder.Code != http.StatusOK {
 		t.Fatalf(
 			"預期 status code 為 %d，實際得到 %d，response: %s",
@@ -595,10 +738,6 @@ func TestUpdateDbTask(t *testing.T) {
 			recorder.Code,
 			recorder.Body.String(),
 		)
-	}
-
-	if !fakeRepository.updateCalled {
-		t.Fatal("應該呼叫 Repository.Update")
 	}
 
 	var task models.Task
@@ -614,27 +753,35 @@ func TestUpdateDbTask(t *testing.T) {
 		)
 	}
 
-	if task.ID != targetId {
+	if task.ID != 10 {
 		t.Errorf(
 			"預期操作 id 為 %d ， 實際操作 id 為 %d",
-			targetId,
+			10,
 			task.ID,
 		)
 	}
 
-	if task.Title != targetTitle {
+	if task.Title != "test buy milk" {
 		t.Errorf(
-			"預期輸入 title 為 %v ， 實際輸入 title 為 %v",
-			targetTitle,
+			"預期輸出 title 為 %v ， 實際輸出 title 為 %v",
+			"test buy milk",
 			task.Title,
 		)
 	}
 
-	if task.Completed != targetCompleted {
+	if task.Completed != true {
 		t.Errorf(
-			"預期輸入 completed 為 %t ， 實際輸入 completed 為 %t",
-			targetCompleted,
+			"預期輸出 completed 為 %t ， 實際輸出 completed 為 %t",
+			true,
 			task.Completed,
+		)
+	}
+
+	if task != stubUpdateTaskResult {
+		t.Errorf(
+			"預期 回傳 result 為: %+v, 實際為: %+v",
+			stubUpdateTaskResult,
+			task,
 		)
 	}
 

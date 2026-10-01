@@ -163,6 +163,26 @@ func (h *Handler) UpdateDbTask(
 			return
 		}
 
+		if errors.Is(err, domain.ErrTaskTitleRequired) {
+			http.Error(
+				w,
+				"title 必須存在",
+				http.StatusBadRequest,
+			)
+
+			log.Println("input title trim 後為空")
+			return
+		}
+
+		if errors.Is(err, domain.ErrTaskPositiveInteger) {
+			http.Error(
+				w,
+				"輸入 id 必須為正整數",
+				http.StatusBadRequest,
+			)
+			return
+		}
+
 		http.Error(
 			w,
 			"伺服器內部錯誤",
