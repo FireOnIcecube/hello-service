@@ -28,6 +28,11 @@ type TaskRepository interface {
 		title string,
 		completed bool,
 	) (models.Task, error)
+
+	Delete(
+		ctx context.Context,
+		id int,
+	) error
 }
 
 func NewTaskService(
@@ -79,4 +84,16 @@ func (s *TaskService) UpdateTask(
 
 	return s.taskRepository.Update(ctx, id, normalizedTitle, completed)
 
+}
+
+func (s *TaskService) DeleteTask(
+	ctx context.Context,
+	id int,
+) error {
+
+	if id <= 0 {
+		return domain.ErrTaskPositiveInteger
+	}
+
+	return s.taskRepository.Delete(ctx, id)
 }
