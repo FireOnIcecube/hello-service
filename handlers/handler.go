@@ -42,6 +42,9 @@ type TaskService interface {
 		id int,
 		title string,
 		completed bool) (models.Task, error)
+
+	DeleteTask(ctx context.Context,
+		id int) error
 }
 
 type Handler struct {
