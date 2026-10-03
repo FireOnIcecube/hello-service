@@ -35,6 +35,26 @@ type fakeTaskService struct {
 
 	updateTaskResult models.Task
 	updateTaskErr    error
+
+	// Delete
+	deleteTaskCalled bool
+	deleteID         int
+
+	deleteTaskErr error
+}
+
+func (f *fakeTaskService) DeleteTask(
+	ctx context.Context,
+	id int,
+) error {
+	f.deleteTaskCalled = true
+	f.deleteID = id
+
+	if f.deleteTaskErr != nil {
+		return f.deleteTaskErr
+	}
+
+	return nil
 }
 
 func (f *fakeTaskService) UpdateTask(
@@ -89,113 +109,13 @@ func (f *fakeTaskService) GetTasks(
 
 }
 
-type fakeTaskRepository struct {
-	getAllErr error
-
-	createTitle  string
-	createCalled bool
-	createErr    error
-
-	updateId        int
-	updateTitle     string
-	updateCompleted bool
-	updateCalled    bool
-	updateErr       error
-
-	deleteErr    error
-	deleteCalled bool
-	deleteId     int
-}
-
-func (f *fakeTaskRepository) GetAll(
-	ctx context.Context,
-) ([]models.Task, error) {
-
-	if f.getAllErr != nil {
-		return nil, f.getAllErr
-	}
-
-	return []models.Task{
-		{
-			ID:        1,
-			Title:     "Task A",
-			Completed: false,
-		},
-		{
-			ID:        2,
-			Title:     "Task B",
-			Completed: true,
-		},
-	}, nil
-}
-
-func (f *fakeTaskRepository) Create(
-	ctx context.Context,
-	title string,
-) (models.Task, error) {
-
-	f.createCalled = true
-	f.createTitle = title
-
-	if f.createErr != nil {
-		return models.Task{}, f.createErr
-	}
-
-	return models.Task{
-		ID:        10,
-		Title:     title,
-		Completed: false,
-	}, nil
-
-}
-
-func (f *fakeTaskRepository) Update(
-	ctx context.Context,
-	id int,
-	title string,
-	completed bool,
-) (models.Task, error) {
-
-	f.updateCalled = true
-	f.updateId = id
-	f.updateTitle = title
-	f.updateCompleted = completed
-
-	if f.updateErr != nil {
-
-		return models.Task{}, f.updateErr
-	}
-
-	return models.Task{
-		ID:        id,
-		Title:     title,
-		Completed: completed,
-	}, nil
-}
-
-func (f *fakeTaskRepository) Delete(
-	ctx context.Context,
-	id int,
-) error {
-	f.deleteCalled = true
-	f.deleteId = id
-
-	if f.deleteErr != nil {
-		return f.deleteErr
-	}
-
-	return nil
-}
-
 func TestDeleteDbTaskError(t *testing.T) {
 	// Arrange
-	fakeRepository := fakeTaskRepository{
-		deleteErr: errors.New(" delete task error "),
+	fakeService := fakeTaskService{
+		deleteTaskErr: errors.New(" delete task error "),
 	}
-	fakeService := fakeTaskService{}
 
 	handler := New(
-		&fakeRepository,
 		&fakeService,
 	)
 
@@ -210,24 +130,23 @@ func TestDeleteDbTaskError(t *testing.T) {
 	// Assert
 	if recorder.Code != http.StatusInternalServerError {
 		t.Fatalf("預期 status code 為: %d , 實際為: %d , \n response: %s ",
-			http.StatusNotFound,
+			http.StatusInternalServerError,
 			recorder.Code,
 			recorder.Body.String())
 	}
 
-	if !fakeRepository.deleteCalled {
-		t.Fatalf("Repository.Delete 應該被呼叫, \n response: %s", recorder.Body.String())
+	if !fakeService.deleteTaskCalled {
+		t.Fatalf("Service 應該被呼叫, \n response: %s", recorder.Body.String())
 	}
 }
 
 func TestDeleteDbTaskNotFound(t *testing.T) {
 	// Arrange
-	fakeRepository := fakeTaskRepository{
-		deleteErr: domain.ErrTaskNotFound,
+	fakeService := fakeTaskService{
+		deleteTaskErr: domain.ErrTaskNotFound,
 	}
-	fakeService := fakeTaskService{}
 
-	handler := New(&fakeRepository, &fakeService)
+	handler := New(&fakeService)
 
 	request := httptest.NewRequest(http.MethodDelete, "/db-task/10", nil)
 	request.SetPathValue("id", "10")
@@ -245,17 +164,16 @@ func TestDeleteDbTaskNotFound(t *testing.T) {
 			recorder.Body.String())
 	}
 
-	if !fakeRepository.deleteCalled {
-		t.Fatal("應該呼叫 Repository.Delete")
+	if !fakeService.deleteTaskCalled {
+		t.Fatal("應該呼叫 Service")
 	}
 }
 
 func TestDeleteDbTaskInvalidId(t *testing.T) {
 	// Arrange
-	fakeRepository := fakeTaskRepository{}
 	fakeService := fakeTaskService{}
 
-	handler := New(&fakeRepository, &fakeService)
+	handler := New(&fakeService)
 
 	request := httptest.NewRequest(http.MethodDelete, "/db-task/invalid", nil)
 	request.SetPathValue("id", "invalid")
@@ -274,8 +192,8 @@ func TestDeleteDbTaskInvalidId(t *testing.T) {
 		)
 	}
 
-	if fakeRepository.deleteCalled {
-		t.Fatalf("Repository.Delete 不應被呼叫, \n response: %s", recorder.Body.String())
+	if fakeService.deleteTaskCalled {
+		t.Fatalf("Service 不應被呼叫, \n response: %s", recorder.Body.String())
 	}
 }
 
@@ -307,9 +225,9 @@ func TestDeleteDbTask(t *testing.T) {
 			wantStatus: http.StatusNotFound,
 			wantCalled: true,
 		}, {
-			name:       "repository error",
+			name:       "service error",
 			pathID:     "10",
-			deleteErr:  errors.New("delete failed"),
+			deleteErr:  errors.New("delete task failed"),
 			wantStatus: http.StatusInternalServerError,
 			wantCalled: true,
 		},
@@ -319,12 +237,11 @@ func TestDeleteDbTask(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			// Arrange
-			fakeRepository := fakeTaskRepository{
-				deleteErr: tt.deleteErr,
+			fakeService := fakeTaskService{
+				deleteTaskErr: tt.deleteErr,
 			}
-			fakeService := fakeTaskService{}
 
-			handler := New(&fakeRepository, &fakeService)
+			handler := New(&fakeService)
 
 			request := httptest.NewRequest(http.MethodDelete, "/db-task/"+tt.pathID, nil)
 			request.SetPathValue("id", tt.pathID)
@@ -343,21 +260,21 @@ func TestDeleteDbTask(t *testing.T) {
 				)
 			}
 
-			if fakeRepository.deleteCalled != tt.wantCalled {
+			if fakeService.deleteTaskCalled != tt.wantCalled {
 				t.Errorf(
-					"預期 deleteCalled=%t，實際為 %t",
+					"預期 deleteTaskCalled =%t，實際為 %t",
 					tt.wantCalled,
-					fakeRepository.deleteCalled,
+					fakeService.deleteTaskCalled,
 				)
 			}
 
 			if tt.wantCalled {
 
-				if tt.pathID != strconv.Itoa(fakeRepository.deleteId) {
+				if tt.pathID != strconv.Itoa(fakeService.deleteID) {
 					t.Errorf(
 						"預期操作 id 為 %v ， 實際操作 id 為 %v",
 						tt.pathID,
-						fakeRepository.deleteId,
+						fakeService.deleteID,
 					)
 				}
 			}
@@ -367,44 +284,6 @@ func TestDeleteDbTask(t *testing.T) {
 	}
 }
 
-// func TestDeleteDbTask(t *testing.T) {
-// 	// Arrage
-// 	fakeRepository := fakeTaskRepository{}
-// 	handler := New(&fakeRepository)
-
-// 	request := httptest.NewRequest(http.MethodDelete, "/db-task/10", nil)
-// 	request.SetPathValue("id", "10")
-
-// 	recorder := httptest.NewRecorder()
-
-// 	// Act
-// 	handler.DeleteDbTask(recorder, request)
-
-// 	// Assert
-// 	if recorder.Code != http.StatusNoContent {
-// 		t.Fatalf("預期 status code 為: %d , 實際收到: %d , response: %s",
-// 			http.StatusNoContent,
-// 			recorder.Code,
-// 			recorder.Body.String())
-// 	}
-
-// 	if !fakeRepository.deleteCalled {
-// 		t.Fatal("應該呼叫 Repository.Delete")
-// 	}
-
-// 	if fakeRepository.deleteId != 10 {
-// 		t.Errorf(
-// 			"預期 Repository.Delete 收到 id %d，實際得到 %d",
-// 			10,
-// 			fakeRepository.deleteId,
-// 		)
-// 	}
-
-// 	if recorder.Body.Len() != 0 {
-// 		t.Errorf("不應有任何回傳值 , response: %s \n", recorder.Body.String())
-// 	}
-// }
-
 func TestUpdateDbTaskNotFound(t *testing.T) {
 	// Arrange
 	spyTask := models.Task{
@@ -413,12 +292,11 @@ func TestUpdateDbTaskNotFound(t *testing.T) {
 		Completed: false,
 	}
 
-	fakeRepo := fakeTaskRepository{}
 	fakeService := fakeTaskService{
 		updateTaskErr: domain.ErrTaskNotFound,
 	}
 
-	handler := New(&fakeRepo, &fakeService)
+	handler := New(&fakeService)
 
 	request := httptest.NewRequest(http.MethodPut,
 		fmt.Sprintf(`/db-task/%d`, spyTask.ID),
@@ -459,12 +337,11 @@ func TestUpdateDbTaskPositiveInteger(t *testing.T) {
 		Completed: false,
 	}
 
-	fakeRepo := fakeTaskRepository{}
 	fakeService := fakeTaskService{
 		updateTaskErr: domain.ErrTaskPositiveInteger,
 	}
 
-	handler := New(&fakeRepo, &fakeService)
+	handler := New(&fakeService)
 
 	request := httptest.NewRequest(
 		http.MethodPut,
@@ -505,12 +382,11 @@ func TestUpdateDbTaskTitleRequired(t *testing.T) {
 		Completed: false,
 	}
 
-	fakeRepo := fakeTaskRepository{}
 	fakeService := fakeTaskService{
 		updateTaskErr: domain.ErrTaskTitleRequired,
 	}
 
-	handler := New(&fakeRepo, &fakeService)
+	handler := New(&fakeService)
 
 	request := httptest.NewRequest(
 		http.MethodPut,
@@ -544,10 +420,9 @@ func TestUpdateDbTaskTitleRequired(t *testing.T) {
 
 func TestUpdateDbTaskInvalidJson(t *testing.T) {
 	// Arrange
-	fakeRepository := fakeTaskRepository{}
 	fakeService := fakeTaskService{}
 
-	handler := New(&fakeRepository, &fakeService)
+	handler := New(&fakeService)
 
 	request := httptest.NewRequest(http.MethodPut,
 		"/db-test/10",
@@ -579,10 +454,9 @@ func TestUpdateDbTaskInvalidJson(t *testing.T) {
 
 func TestUpdateDbTaskInvalidId(t *testing.T) {
 	// Arrange
-	fakeRepository := fakeTaskRepository{}
 	fakeService := fakeTaskService{}
 
-	handler := New(&fakeRepository, &fakeService)
+	handler := New(&fakeService)
 
 	var invalidId = "bad"
 
@@ -624,14 +498,13 @@ func TestUpdateDbTaskInvalidId(t *testing.T) {
 func TestUpdateDbTaskError(t *testing.T) {
 
 	// Arrange
-	fakeRepository := fakeTaskRepository{}
 
 	serviceErr := errors.New("service failed")
 	fakeService := fakeTaskService{
 		updateTaskErr: serviceErr,
 	}
 
-	handler := New(&fakeRepository, &fakeService)
+	handler := New(&fakeService)
 
 	request := httptest.NewRequest(http.MethodPut, "/db-task/10", strings.NewReader(
 		`{"title":"internalError"}`,
@@ -675,12 +548,11 @@ func TestUpdateDbTask(t *testing.T) {
 	}
 
 	// Arrange
-	fakeRepository := fakeTaskRepository{}
 	fakeService := fakeTaskService{
 		updateTaskResult: stubUpdateTaskResult,
 	}
 
-	handler := New(&fakeRepository, &fakeService)
+	handler := New(&fakeService)
 
 	// var targetId = 10
 	// var targetTitle = "test"
@@ -787,17 +659,16 @@ func TestUpdateDbTask(t *testing.T) {
 
 }
 
-func TestCreateDbTaskRepositoryError(t *testing.T) {
+func TestCreateDbTaskServiceError(t *testing.T) {
 
 	// Arrange
-	fakeRepository := fakeTaskRepository{}
 	fakeService := fakeTaskService{
 		createTaskErr: errors.New(
 			"create failed",
 		),
 	}
 
-	handler := New(&fakeRepository, &fakeService)
+	handler := New(&fakeService)
 
 	request := httptest.NewRequest(
 		http.MethodPost,
@@ -826,13 +697,13 @@ func TestCreateDbTaskRepositoryError(t *testing.T) {
 
 	if !fakeService.createTaskCalled {
 		t.Error(
-			"預期 Repository.Create 被呼叫",
+			"預期 Service 被呼叫",
 		)
 	}
 
 	if fakeService.createTaskTitle != "Learn Testing" {
 		t.Errorf(
-			"預期 Repository 收到 title %q，實際得到 %q",
+			"預期 Service 收到 title %q，實際得到 %q",
 			"Learn Testing",
 			fakeService.createTaskTitle,
 		)
@@ -843,14 +714,9 @@ func TestCreateDbTaskRepositoryError(t *testing.T) {
 func TestCreateDbTaskInvalidJSON(t *testing.T) {
 	// Arrange
 
-	fakeRepository := fakeTaskRepository{
-		createErr: errors.New(
-			"create failed",
-		),
-	}
 	fakeService := fakeTaskService{}
 
-	handler := New(&fakeRepository, &fakeService)
+	handler := New(&fakeService)
 
 	request := httptest.NewRequest(
 		http.MethodPost,
@@ -873,7 +739,7 @@ func TestCreateDbTaskInvalidJSON(t *testing.T) {
 
 	if fakeService.createTaskCalled {
 		t.Error(
-			"JSON 無效時，不應呼叫 Repository.Create",
+			"JSON 無效時，不應呼叫 Service Create",
 		)
 	}
 
@@ -890,12 +756,11 @@ func TestCreateDbTaskInvalidJSON(t *testing.T) {
 func TestCreateTitleRequried(t *testing.T) {
 	// Arrange
 
-	fakeRepository := fakeTaskRepository{}
 	fakeService := fakeTaskService{
 		createTaskErr: domain.ErrTaskTitleRequired,
 	}
 
-	handler := New(&fakeRepository, &fakeService)
+	handler := New(&fakeService)
 
 	request := httptest.NewRequest(
 		http.MethodPost,
@@ -926,10 +791,9 @@ func TestCreateTitleRequried(t *testing.T) {
 func TestCreateDbTask(t *testing.T) {
 
 	// Arrange
-	fakeRepository := fakeTaskRepository{}
 	fakeService := fakeTaskService{}
 
-	handler := New(&fakeRepository, &fakeService)
+	handler := New(&fakeService)
 
 	request := httptest.NewRequest(
 		http.MethodPost,
@@ -958,7 +822,7 @@ func TestCreateDbTask(t *testing.T) {
 
 	if fakeService.createTaskTitle != "Learn Testing" {
 		t.Errorf(
-			"預期 Repository 收到 title %q，實際得到 %q",
+			"預期 Service 收到 title %q，實際得到 %q",
 			"Learn Testing",
 			fakeService.createTaskTitle,
 		)
@@ -991,15 +855,14 @@ func TestCreateDbTask(t *testing.T) {
 
 }
 
-func TestGetDbTasksRepositoryError(t *testing.T) {
+func TestGetDbTasksServiceError(t *testing.T) {
 
 	// Arrange
-	fakeRepository := fakeTaskRepository{
-		getAllErr: errors.New("repositories failed"),
+	fakeService := fakeTaskService{
+		getTasksErr: errors.New("service failed"),
 	}
-	fakeService := fakeTaskService{}
 
-	handler := New(&fakeRepository, &fakeService)
+	handler := New(&fakeService)
 
 	request := httptest.NewRequest(
 		http.MethodGet,
@@ -1027,10 +890,9 @@ func TestGetDbTasksRepositoryError(t *testing.T) {
 }
 
 func TestGetDbTasks(t *testing.T) {
-	fakeRepository := &fakeTaskRepository{}
 	fakeService := fakeTaskService{}
 
-	handler := New(fakeRepository, &fakeService)
+	handler := New(&fakeService)
 
 	request := httptest.NewRequest(
 		http.MethodGet,

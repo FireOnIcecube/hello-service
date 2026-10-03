@@ -225,7 +225,7 @@ func (h *Handler) DeleteDbTask(
 		return
 	}
 
-	err = h.taskRepository.Delete(r.Context(), id)
+	err = h.taskService.DeleteTask(r.Context(), id)
 
 	if err != nil {
 		if errors.Is(err, domain.ErrTaskNotFound) {
@@ -233,6 +233,15 @@ func (h *Handler) DeleteDbTask(
 				w,
 				"刪除資料不存在",
 				http.StatusNotFound,
+			)
+			return
+		}
+
+		if errors.Is(err, domain.ErrTaskPositiveInteger) {
+			http.Error(
+				w,
+				"刪除 ID 應為正整數",
+				http.StatusBadRequest,
 			)
 			return
 		}

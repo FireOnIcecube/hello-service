@@ -30,6 +30,11 @@ type fakeTaskRepository struct {
 
 	updateResult models.Task
 	updateErr    error
+
+	// Delete
+	deleteCalled bool
+	deleteID     int
+	deleteErr    error
 }
 
 func (f *fakeTaskRepository) GetAll(ctx context.Context) ([]models.Task, error) {
@@ -73,6 +78,18 @@ func (f *fakeTaskRepository) Update(ctx context.Context,
 	}
 
 	return f.updateResult, nil
+}
+
+func (f *fakeTaskRepository) Delete(ctx context.Context, id int) error {
+	f.deleteCalled = true
+	f.deleteID = id
+
+	if f.deleteErr != nil {
+
+		return f.deleteErr
+	}
+
+	return nil
 }
 
 // GetAll Repository 錯誤
@@ -440,4 +457,150 @@ func TestTaskServiceUpdateTaskPositiveIntegerErr(t *testing.T) {
 	if fakeRepo.updateCalled {
 		t.Fatal("Update 不應該被執行")
 	}
+}
+
+// Delete 正常流程
+func TestTaskServiceDeleteTask(t *testing.T) {
+
+	// 測試資料
+	spyTaskID := 1
+
+	// Arrange
+	fakeRepository := fakeTaskRepository{}
+	service := NewTaskService(&fakeRepository)
+
+	ctx := context.Background()
+
+	// Act
+	err := service.DeleteTask(ctx, spyTaskID)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("接收到錯誤，操作失敗: %v", err)
+	}
+
+	if fakeRepository.deleteCalled == false {
+		t.Fatal("Repository.Delete 應該被呼叫")
+	}
+
+	// 核對 spy 資料
+	if fakeRepository.deleteID != 1 {
+		t.Errorf("預期 repo 接收 id 為: %d , 實際接收 id: %d",
+			1,
+			fakeRepository.deleteID)
+	}
+
+}
+
+func TestTaskServiceDeleteTaskNotFound(t *testing.T) {
+
+	// 測試資料
+	spyTaskID := 999
+
+	// Arrange
+	fakeRepo := fakeTaskRepository{
+		deleteErr: domain.ErrTaskNotFound,
+	}
+	service := NewTaskService(&fakeRepo)
+
+	ctx := context.Background()
+
+	// Act
+	err := service.DeleteTask(ctx, spyTaskID)
+
+	// Assert
+	if err == nil {
+		t.Fatal("應該回報錯誤")
+	}
+
+	if !errors.Is(err, domain.ErrTaskNotFound) {
+		t.Fatalf("預期回報錯誤為: %v , 實際回報錯誤為: %v",
+			domain.ErrTaskNotFound, err)
+	}
+
+	if fakeRepo.deleteCalled == false {
+		t.Fatalf(
+			"預期 repo deletedCalled 為: %t , 實際為: %t",
+			true,
+			fakeRepo.deleteCalled,
+		)
+	}
+
+	// 核對 spy
+	if fakeRepo.deleteID != spyTaskID {
+		t.Errorf("預期 repo 接收 deleteID : %d, repo 實際接收 deleteID: %d",
+			spyTaskID,
+			fakeRepo.deleteID,
+		)
+	}
+
+}
+
+func TestTaskServiceDeleteTaskPositiveInteger(t *testing.T) {
+	// 測試資料
+	spyTaskID := -1
+
+	// Arrange
+	fakeRepo := fakeTaskRepository{}
+	service := NewTaskService(&fakeRepo)
+
+	ctx := context.Background()
+
+	// Act
+	err := service.DeleteTask(ctx, spyTaskID)
+
+	// Assert
+	if err == nil {
+		t.Fatal("應該回報錯誤")
+	}
+
+	if !errors.Is(err, domain.ErrTaskPositiveInteger) {
+		t.Fatalf("預期回報錯誤為: %v , 實際回報錯誤為: %v",
+			domain.ErrTaskPositiveInteger, err)
+	}
+
+	if fakeRepo.deleteCalled == true {
+		t.Fatalf(
+			"預期 repo deletedCalled 為: %t , 實際為: %t",
+			false,
+			fakeRepo.deleteCalled,
+		)
+	}
+
+}
+
+func TestTaskServiceDeleteTaskRepositoryError(t *testing.T) {
+	// 測試資料
+	spyTaskID := 1
+	spyErr := errors.New("delete repo error")
+
+	// Arrange
+	fakeRepo := fakeTaskRepository{
+		deleteErr: spyErr,
+	}
+	service := NewTaskService(&fakeRepo)
+
+	ctx := context.Background()
+
+	// Act
+	err := service.DeleteTask(ctx, spyTaskID)
+
+	// Assert
+	if err == nil {
+		t.Fatal("應該回報錯誤")
+	}
+
+	if !errors.Is(err, spyErr) {
+		t.Fatalf("預期回報錯誤為: %v , 實際回報錯誤為: %v",
+			spyErr, err)
+	}
+
+	if fakeRepo.deleteCalled == false {
+		t.Fatalf(
+			"預期 repo deletedCalled 為: %t , 實際為: %t",
+			true,
+			fakeRepo.deleteCalled,
+		)
+	}
+
 }
