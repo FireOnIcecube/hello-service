@@ -222,7 +222,7 @@ func main() {
 	taskRepository := repositories.NewTaskRepository(dbPool)
 	taskService := services.NewTaskService(taskRepository)
 
-	handler := handlers.New(taskRepository, taskService)
+	handler := handlers.New(taskService)
 
 	router := newRouter(handler)
 
