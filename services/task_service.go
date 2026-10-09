@@ -12,6 +12,11 @@ type TaskService struct {
 	taskRepository TaskRepository
 }
 
+type PatchTaskInput struct {
+	Title     *string
+	Completed *bool
+}
+
 type TaskRepository interface {
 	GetAll(
 		ctx context.Context,
@@ -33,6 +38,13 @@ type TaskRepository interface {
 		ctx context.Context,
 		id int,
 	) error
+
+	Patch(
+		ctx context.Context,
+		id int,
+		title *string,
+		completed *bool,
+	) (models.Task, error)
 }
 
 func NewTaskService(
@@ -96,4 +108,35 @@ func (s *TaskService) DeleteTask(
 	}
 
 	return s.taskRepository.Delete(ctx, id)
+}
+
+func (s *TaskService) PatchTask(
+	ctx context.Context,
+	id int,
+	input PatchTaskInput,
+) (models.Task, error) {
+
+	if id <= 0 {
+		return models.Task{}, domain.ErrTaskPositiveInteger
+	}
+
+	var normalizedTitle *string
+
+	if input.Title != nil {
+		title := strings.TrimSpace(*input.Title)
+
+		if title == "" {
+			return models.Task{}, domain.ErrTaskNotFound
+		}
+
+		normalizedTitle = &title
+	}
+
+	return s.taskRepository.Patch(
+		ctx,
+		id,
+		normalizedTitle,
+		input.Completed,
+	)
+
 }
