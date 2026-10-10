@@ -126,7 +126,7 @@ func (s *TaskService) PatchTask(
 		title := strings.TrimSpace(*input.Title)
 
 		if title == "" {
-			return models.Task{}, domain.ErrTaskNotFound
+			return models.Task{}, domain.ErrTaskTitleRequired
 		}
 
 		normalizedTitle = &title

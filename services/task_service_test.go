@@ -35,6 +35,15 @@ type fakeTaskRepository struct {
 	deleteCalled bool
 	deleteID     int
 	deleteErr    error
+
+	// Patch
+	patchCalled    bool
+	patchID        int
+	patchTitle     *string
+	patchCompleted *bool
+
+	patchResult models.Task
+	patchErr    error
 }
 
 func (f *fakeTaskRepository) GetAll(ctx context.Context) ([]models.Task, error) {
@@ -90,6 +99,22 @@ func (f *fakeTaskRepository) Delete(ctx context.Context, id int) error {
 	}
 
 	return nil
+}
+
+func (f *fakeTaskRepository) Patch(ctx context.Context, id int,
+	title *string,
+	completed *bool) (models.Task, error) {
+	f.patchCalled = true
+	f.patchID = id
+	f.patchTitle = title
+	f.patchCompleted = completed
+
+	if f.patchErr != nil {
+		return models.Task{}, f.patchErr
+	}
+
+	return f.patchResult, nil
+
 }
 
 // GetAll Repository 錯誤
@@ -601,6 +626,497 @@ func TestTaskServiceDeleteTaskRepositoryError(t *testing.T) {
 			true,
 			fakeRepo.deleteCalled,
 		)
+	}
+
+}
+
+func TestTaskServicePatchTaskOnlyTitle(t *testing.T) {
+	// Arrange
+	spyTaskID := 10
+
+	taskTitle := "  買牛奶  "
+	spyTaskTitle := &taskTitle
+
+	var spyTaskCompleted *bool
+
+	spyTask := PatchTaskInput{
+		Title:     spyTaskTitle,
+		Completed: spyTaskCompleted,
+	}
+
+	expectedResult := models.Task{
+		ID:        10,
+		Title:     "買牛奶",
+		Completed: false,
+	}
+
+	fakeRepo := fakeTaskRepository{
+		patchResult: expectedResult,
+	}
+	service := NewTaskService(&fakeRepo)
+
+	ctx := context.Background()
+
+	// Act
+	task, err := service.PatchTask(ctx, spyTaskID, spyTask)
+
+	// Assert
+	if fakeRepo.patchCalled != true {
+		t.Fatal("Repo 應該被呼叫")
+	}
+
+	if err != nil {
+		t.Fatalf("回報錯誤: %v", err)
+	}
+
+	// 檢查 spy
+
+	if fakeRepo.patchID != 10 {
+		t.Errorf("預期 patchID 為: %v , 實際為: %v",
+			"10",
+			fakeRepo.patchID,
+		)
+	}
+
+	if *fakeRepo.patchTitle != "買牛奶" {
+		t.Errorf("預期 patchTitle 為: %v , 實際為: %v",
+			"買牛奶",
+			fakeRepo.patchTitle,
+		)
+	}
+
+	if fakeRepo.patchCompleted != nil {
+		t.Errorf("預期 patchCompleted 為: %+v , 實際為: %+v",
+			nil,
+			fakeRepo.patchCompleted,
+		)
+	}
+
+	// 檢查 stub
+
+	if task.ID != expectedResult.ID {
+		t.Errorf("預期回傳 patchID 為: %+v , 實際為: %+v",
+			expectedResult.ID,
+			task.ID,
+		)
+	}
+
+	if task.Title != expectedResult.Title {
+		t.Errorf("預期回傳 patchTitle 為: %+v , 實際為: %+v",
+			expectedResult.Title,
+			task.Title,
+		)
+	}
+
+	if task.Completed != expectedResult.Completed {
+		t.Errorf("預期回傳 patchCompleted 為: %+v , 實際為: %+v",
+			expectedResult.Completed,
+			task.Completed,
+		)
+	}
+
+	if task != expectedResult {
+		t.Errorf("預期回傳 patchResult 為: %+v , 實際為: %+v",
+			expectedResult,
+			task,
+		)
+	}
+
+}
+
+func TestTaskServicePatchTaskOnlyCompleted(t *testing.T) {
+	// Arrange
+	spyTaskID := 10
+
+	var spyTaskTitle *string
+
+	taskCompleted := true
+	spyTaskCompleted := &taskCompleted
+
+	spyTask := PatchTaskInput{
+		Title:     spyTaskTitle,
+		Completed: spyTaskCompleted,
+	}
+
+	expectedResult := models.Task{
+		ID:        10,
+		Title:     "沒更動過的 title",
+		Completed: true,
+	}
+
+	fakeRepo := fakeTaskRepository{
+		patchResult: expectedResult,
+	}
+	services := NewTaskService(&fakeRepo)
+
+	ctx := context.Background()
+
+	// Act
+	task, err := services.PatchTask(ctx, spyTaskID, spyTask)
+
+	// Assert
+	if fakeRepo.patchCalled != true {
+		t.Fatal("Repo 應該被呼叫")
+	}
+
+	if err != nil {
+		t.Fatalf("回報錯誤: %v", err)
+	}
+
+	// 檢查 spy
+	if fakeRepo.patchID != 10 {
+		t.Errorf("預期 patchID 為: %v , 實際為: %v",
+			10,
+			fakeRepo.patchID,
+		)
+	}
+
+	if fakeRepo.patchTitle != nil {
+		t.Errorf("預期 patchTitle 為: %v , 實際為: %v",
+			nil,
+			fakeRepo.patchTitle,
+		)
+	}
+
+	if *fakeRepo.patchCompleted != true {
+		t.Errorf("預期 patchCompleted 為: %+v , 實際為: %+v",
+			true,
+			fakeRepo.patchCompleted,
+		)
+	}
+
+	// 檢查 stub
+
+	if task.ID != expectedResult.ID {
+		t.Errorf("預期回傳 patchID 為: %+v , 實際為: %+v",
+			expectedResult.ID,
+			task.ID,
+		)
+	}
+
+	if task.Title != expectedResult.Title {
+		t.Errorf("預期回傳 patchTitle 為: %+v , 實際為: %+v",
+			expectedResult.Title,
+			task.Title,
+		)
+	}
+
+	if task.Completed != expectedResult.Completed {
+		t.Errorf("預期回傳 patchCompleted 為: %+v , 實際為: %+v",
+			expectedResult.Completed,
+			task.Completed,
+		)
+	}
+
+	if task != expectedResult {
+		t.Errorf("預期回傳 patchResult 為: %+v , 實際為: %+v",
+			expectedResult,
+			task,
+		)
+	}
+
+}
+
+func TestTaskServicePatchOnlyCompleteFalse(t *testing.T) {
+	// Arrange
+	spyTaskID := 10
+	var spyTaskTitle *string
+
+	taskCompleted := false
+	spyTaskCompleted := &taskCompleted
+
+	spyTask := PatchTaskInput{
+		Title:     spyTaskTitle,
+		Completed: spyTaskCompleted,
+	}
+
+	expectedResult := models.Task{
+		ID:        10,
+		Title:     "沒更動過的 title",
+		Completed: false,
+	}
+
+	fakeRepo := fakeTaskRepository{
+		patchResult: expectedResult,
+	}
+	services := NewTaskService(&fakeRepo)
+
+	ctx := context.Background()
+
+	// Act
+	task, err := services.PatchTask(ctx, spyTaskID, spyTask)
+
+	// Assert
+	if fakeRepo.patchCalled != true {
+		t.Fatal("Repo 應該被呼叫")
+	}
+
+	if err != nil {
+		t.Fatalf("回報錯誤: %v", err)
+	}
+
+	// 檢查 spy
+	if fakeRepo.patchID != 10 {
+		t.Errorf("預期 patchID 為: %v , 實際為: %v",
+			"10",
+			fakeRepo.patchID,
+		)
+	}
+
+	if fakeRepo.patchTitle != nil {
+		t.Errorf("預期 patchTitle 為: %v , 實際為: %v",
+			nil,
+			fakeRepo.patchTitle,
+		)
+	}
+
+	if *fakeRepo.patchCompleted != false {
+		t.Errorf("預期 patchCompleted 為: %+v , 實際為: %+v",
+			false,
+			fakeRepo.patchCompleted,
+		)
+	}
+
+	// 檢查 stub
+
+	if task.ID != expectedResult.ID {
+		t.Errorf("預期回傳 patchID 為: %+v , 實際為: %+v",
+			expectedResult.ID,
+			task.ID,
+		)
+	}
+
+	if task.Title != expectedResult.Title {
+		t.Errorf("預期回傳 patchTitle 為: %+v , 實際為: %+v",
+			expectedResult.Title,
+			task.Title,
+		)
+	}
+
+	if task.Completed != expectedResult.Completed {
+		t.Errorf("預期回傳 patchCompleted 為: %+v , 實際為: %+v",
+			expectedResult.Completed,
+			task.Completed,
+		)
+	}
+
+	if task != expectedResult {
+		t.Errorf("預期回傳 patchResult 為: %+v , 實際為: %+v",
+			expectedResult,
+			task,
+		)
+	}
+
+}
+
+func TestTaskServicePatchErrorTitleEmpty(t *testing.T) {
+	// Arrange
+	spyTaskID := 10
+
+	taskTitle := "   "
+	spyTaskTitle := &taskTitle
+
+	var spyTaskCompleted *bool
+
+	spyTask := PatchTaskInput{
+		Title:     spyTaskTitle,
+		Completed: spyTaskCompleted,
+	}
+
+	fakeRepo := fakeTaskRepository{}
+	service := NewTaskService(&fakeRepo)
+
+	ctx := context.Background()
+
+	// Act
+	_, err := service.PatchTask(ctx, spyTaskID, spyTask)
+
+	// Assert
+	if err == nil {
+		t.Fatal("預計回傳錯誤")
+	}
+
+	if fakeRepo.patchCalled == true {
+		t.Fatal("Repo 不應該被呼叫")
+	}
+
+	if err != domain.ErrTaskTitleRequired {
+		t.Fatalf("預計回傳錯誤為: %v , 實際為: %v",
+			domain.ErrTaskTitleRequired,
+			err)
+
+	}
+}
+
+func TestTaskSerivcePatchErrorPositiveInteger(t *testing.T) {
+	// Arrange
+	spyTaskID := -10
+
+	taskTitle := "invalid id"
+	spyTaskTitle := &taskTitle
+
+	var spyTaskCompleted *bool
+
+	spyTask := PatchTaskInput{
+		Title:     spyTaskTitle,
+		Completed: spyTaskCompleted,
+	}
+
+	fakeRepo := fakeTaskRepository{}
+	service := NewTaskService(&fakeRepo)
+
+	ctx := context.Background()
+
+	// Act
+	_, err := service.PatchTask(ctx, spyTaskID, spyTask)
+
+	// Assert
+
+	if err == nil {
+		t.Fatal("預計回傳錯誤")
+	}
+
+	if fakeRepo.patchCalled == true {
+		t.Fatal("Repo 不應該被呼叫")
+	}
+
+	if err != domain.ErrTaskPositiveInteger {
+		t.Fatalf("預計回傳錯誤為: %v , 實際為: %v",
+			domain.ErrTaskPositiveInteger,
+			err)
+	}
+
+}
+
+func TestTaskServicePatchNothing(t *testing.T) {
+	// Arrange
+	spyTaskID := 10
+
+	var spyTaskTitle *string
+	var spyTaskCompleted *bool
+
+	spyTask := PatchTaskInput{
+		Title:     spyTaskTitle,
+		Completed: spyTaskCompleted,
+	}
+
+	expectedResult := models.Task{
+		ID:        10,
+		Title:     "沒更動過的 title",
+		Completed: false,
+	}
+
+	fakeRepo := fakeTaskRepository{
+		patchResult: expectedResult,
+	}
+	service := NewTaskService(&fakeRepo)
+
+	ctx := context.Background()
+
+	// Act
+	task, err := service.PatchTask(ctx, spyTaskID, spyTask)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("回報錯誤: %v", err)
+	}
+
+	if fakeRepo.patchCalled == false {
+		t.Fatal("Repo 應該被呼叫")
+	}
+
+	// 檢查 spy
+	if fakeRepo.patchID != 10 {
+		t.Errorf("預期 patchID 為: %v , 實際為: %v",
+			10,
+			fakeRepo.patchID,
+		)
+	}
+
+	if fakeRepo.patchTitle != nil {
+		t.Errorf("預期 patchTitle 為: %v , 實際為: %v",
+			nil,
+			fakeRepo.patchTitle,
+		)
+	}
+
+	if fakeRepo.patchCompleted != nil {
+		t.Errorf("預期 patchCompleted 為: %+v , 實際為: %+v",
+			nil,
+			fakeRepo.patchCompleted,
+		)
+	}
+
+	// 檢查 stub
+
+	if task.ID != expectedResult.ID {
+		t.Errorf("預期回傳 patchID 為: %+v , 實際為: %+v",
+			expectedResult.ID,
+			task.ID,
+		)
+	}
+
+	if task.Title != expectedResult.Title {
+		t.Errorf("預期回傳 patchTitle 為: %+v , 實際為: %+v",
+			expectedResult.Title,
+			task.Title,
+		)
+	}
+
+	if task.Completed != expectedResult.Completed {
+		t.Errorf("預期回傳 patchCompleted 為: %+v , 實際為: %+v",
+			expectedResult.Completed,
+			task.Completed,
+		)
+	}
+
+	if task != expectedResult {
+		t.Errorf("預期回傳 patchResult 為: %+v , 實際為: %+v",
+			expectedResult,
+			task,
+		)
+	}
+
+}
+
+func TestTaskServicePatchErrorRepository(t *testing.T) {
+
+	// Arrange
+	patchErr := errors.New("db error")
+
+	spyTaskID := 10
+
+	taskTitle := "repo err title"
+	spyTaskTitle := &taskTitle
+
+	var spyTaskCompleted *bool
+
+	spyTask := PatchTaskInput{
+		Title:     spyTaskTitle,
+		Completed: spyTaskCompleted,
+	}
+
+	fakeRepo := fakeTaskRepository{patchErr: patchErr}
+	service := NewTaskService(&fakeRepo)
+
+	ctx := context.Background()
+
+	// Act
+	_, err := service.PatchTask(ctx, spyTaskID, spyTask)
+
+	// Assert
+	if err == nil {
+		t.Fatal("應該回報錯誤")
+	}
+
+	if fakeRepo.patchCalled == false {
+		t.Fatal("Repo 應該被呼叫")
+	}
+
+	if !errors.Is(err, patchErr) {
+		t.Fatalf("預計回傳錯誤為: %v , 實際為: %v",
+			patchErr,
+			err)
 	}
 
 }
